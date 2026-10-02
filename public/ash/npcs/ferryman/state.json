@@ -1,0 +1,9 @@
+{
+  "id": "ferryman",
+  "alive": true,
+  "hp": 9,
+  "maxHp": 9,
+  "hostile": false,
+  "mood": "patient",
+  "inventory": []
+}

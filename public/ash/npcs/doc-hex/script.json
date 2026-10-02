@@ -1,0 +1,50 @@
+{
+  "id": "doc-hex",
+  "name": "Doc Hex",
+  "aliases": [
+    "doc",
+    "hex",
+    "doc hex"
+  ],
+  "presence": "Doc Hex looks up from a stitch, gauges your color, and already knows your price.",
+  "greeting": "\"Bleeding is extra. Breathing is negotiable. Talk.\"",
+  "topics": {
+    "heal": {
+      "say": "\"Six scrip and I put you back together. Or bring me a clean filter from the orchard and I will pretend to be generous about a breather.\""
+    },
+    "breather": {
+      "say": "\"I have one. I don't sell it. I trade it for a filter that hasn't met the ash. The orchard grows that kind of miracle by accident.\""
+    },
+    "ash": {
+      "say": "\"If ASH is talking again, wash your hands before you touch my bus. Municipal ghosts shed.\""
+    }
+  },
+  "trades": [
+    {
+      "give": "clean-filter",
+      "receive": "breather",
+      "setFlag": "doc_filter",
+      "onceFlag": "doc_filter",
+      "say": "Hex holds the filter to the honest light, grunts, and slides a chemical breather across the dashboard. \"Don't inhale the pretty colors.\""
+    }
+  ],
+  "bribe": {
+    "cost": 6,
+    "heal": true,
+    "say": "Hex's needle finds a vein that still cares. The room steadies. You are whole again, or close enough to lie about it. Six scrip poorer."
+  },
+  "say": [],
+  "combat": {
+    "damage": 1,
+    "scrip": 6,
+    "onDeathSay": "Hex drops without drama. The bus keeps its honest light, which feels like an accusation. You are worse than the wound you came in with."
+  },
+  "shop": {
+    "sells": [
+      "stim"
+    ],
+    "buys": [
+      "junk"
+    ]
+  }
+}

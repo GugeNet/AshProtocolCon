@@ -1,0 +1,44 @@
+{
+  "id": "smugglers-cut",
+  "name": "Smuggler's Cut",
+  "code": "SMG",
+  "x": 2,
+  "y": 2,
+  "exits": {
+    "west": "flooded-underpass",
+    "north": "street-clinic",
+    "south": "ash-well"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "pike_passed",
+      "text": "A service corridor where the village pretends not to look. Crates of unmarked tins. North is the clinic's back door. West is the drowned underpass. South is a door with a man in it."
+    },
+    {
+      "whenFlag": "pike_passed",
+      "text": "The tins remain. The tax, if you paid it, does not. North to the clinic, west into the water if you have a breather, south toward the well that eats light."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "pike"
+  ],
+  "obstacles": [
+    {
+      "dir": "west",
+      "anyItem": [
+        "breather"
+      ],
+      "fail": "West is full of black water. Your lungs file a complaint. A breather, or pick another direction.",
+      "pass": "The breather ticks. You wade west, chest-deep, toward the dock side of the dark."
+    },
+    {
+      "dir": "south",
+      "anyFlag": [
+        "pike_passed"
+      ],
+      "fail": "Pike's boot stays in the south doorway. The chain ticks. \"South is paid for.\"",
+      "pass": "Pike shifts the chain. South is just a stair that smells like a cold fireplace."
+    }
+  ]
+}

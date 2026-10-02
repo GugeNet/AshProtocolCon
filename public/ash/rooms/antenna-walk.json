@@ -1,0 +1,48 @@
+{
+  "id": "antenna-walk",
+  "name": "Antenna Walk",
+  "code": "ANT",
+  "x": 2,
+  "y": 4,
+  "exits": {
+    "west": "glass-orchard",
+    "east": "watchtower"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "password_known",
+      "text": "A catwalk lashed to a dead cell tower. The wind up here has edges. A jury-rigged radio spits numbers and then swallows them. Cinder Reach looks small enough to pity. West, the orchard glitters. East, a sentry's roof."
+    },
+    {
+      "whenFlag": "password_known",
+      "text": "The radio has settled into a satisfied crackle. You have the word. The tower still wants to fall, but not today. West is glass. East is the watchtower."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": [],
+  "onListen": {
+    "counter": "antenna_listens",
+    "steps": [
+      {
+        "at": 1,
+        "requiresItem": "optic-lens",
+        "setFlag": "password_known",
+        "say": "With the lens seated, the static sharpens until it is almost rude. A woman's voice, bored of surviving, says the clearance once: CINDER. Say it to the sentry. Do not embroider it."
+      },
+      {
+        "at": 1,
+        "say": "Numbers. Then a syllable — cin — and the wind takes the rest. The lens from the orchard would make this a sentence."
+      },
+      {
+        "at": 2,
+        "say": "Again. Cinder-something. A child's name used as a key. One more time and the tower may get tired of teasing you."
+      },
+      {
+        "at": 3,
+        "setFlag": "password_known",
+        "say": "The third time the tower gives up. The word is CINDER. Say it plain to the woman with the rifle."
+      }
+    ]
+  }
+}

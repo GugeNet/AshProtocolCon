@@ -1,0 +1,44 @@
+{
+  "id": "juniper-quinn",
+  "name": "Juniper Quinn",
+  "aliases": [
+    "juniper",
+    "quinn",
+    "juniper quinn"
+  ],
+  "presence": "Juniper Quinn sells futures from a counter of black glass. Her smile reaches everything but her eyes.",
+  "greeting": "\"If it has a price, it is already on the slate. If it doesn't, you can't afford the conversation.\"",
+  "topics": {
+    "wafer": {
+      "say": "\"Black wafer. Eighteen. It is half a key and a whole alibi. The other half is white and sulking in a well, if the rumors still pay rent.\""
+    },
+    "gloves": {
+      "say": "\"Insulated. Fourteen. The rooftop cable is not a metaphor. There is also a pair under a drone, if you prefer violence to retail.\""
+    },
+    "spire": {
+      "say": "\"I sell the piece. I do not sell the ending. Endings ruin repeat business.\""
+    },
+    "ash": {
+      "say": "\"ASH is a customer who never paid her last invoice. If you are working for her, charge double. She can afford a city.\""
+    }
+  },
+  "trades": [],
+  "say": [],
+  "combat": {
+    "damage": 2,
+    "scrip": 20,
+    "onDeathSay": "Juniper falls across her own slate. The bazaar inhales and decides it saw nothing. Her stock is suddenly a public resource."
+  },
+  "shop": {
+    "sells": [
+      "shard-b",
+      "insulated-gloves",
+      "stim"
+    ],
+    "buys": [
+      "junk",
+      "weapon",
+      "gear"
+    ]
+  }
+}

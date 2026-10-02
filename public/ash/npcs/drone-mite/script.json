@@ -1,0 +1,28 @@
+{
+  "id": "drone-mite",
+  "name": "the yard drone",
+  "aliases": [
+    "drone",
+    "mite",
+    "yard drone",
+    "dog"
+  ],
+  "presence": "A dog-sized drone orbits a crushed ambulance, lens red, patient as a border.",
+  "greeting": "",
+  "topics": {},
+  "onTalk": [
+    {
+      "say": "The drone answers with a click. The click means leave, or bleed. It has decided this yard is a country."
+    }
+  ],
+  "trades": [],
+  "say": [],
+  "combat": {
+    "damage": 2,
+    "scrip": 8,
+    "onDeathFlags": [
+      "drone_dead"
+    ],
+    "onDeathSay": "The drone dies in a skitter of sparks. Under the chassis, insulated gloves wait for someone with fewer illusions. Scrip spills from a cracked pay-slot."
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "combat-pit",
+  "name": "Combat Pit",
+  "code": "PIT",
+  "x": 3,
+  "y": 1,
+  "exits": {
+    "west": "ash-well",
+    "east": "neon-bazaar",
+    "north": "black-canal",
+    "south": "vault-anteroom"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "razor_passed",
+      "text": "A drained swimming pool under stolen floodlights. The shallow end has a door tax. South, a stair wears a red grid like jewelry. West is the well. East, the bazaar's side door. North, canal air."
+    },
+    {
+      "whenFlag": "razor_passed",
+      "text": "The pit is just a pit, which is the nicest thing it has ever been. The south grid still sews the stair in red. West, well. East, bazaar. North, canal."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "razor-saint"
+  ],
+  "obstacles": [
+    {
+      "dir": "south",
+      "anyFlag": [
+        "razor_passed"
+      ],
+      "fail": "Razor Saint stays on the south stair. \"Tax,\" he says, and the blades agree.",
+      "pass": "Razor lets the stair go."
+    },
+    {
+      "dir": "south",
+      "anyItem": [
+        "cipher-tape"
+      ],
+      "fail": "A red grid sews the south stair. It wants a cipher tape from the relay, not a prayer.",
+      "pass": "You feed the cipher tape into a slot that should not exist. The grid coughs and dies."
+    }
+  ]
+}

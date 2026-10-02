@@ -1,0 +1,9 @@
+{
+  "id": "archivist",
+  "alive": true,
+  "hp": 12,
+  "maxHp": 12,
+  "hostile": false,
+  "mood": "exact",
+  "inventory": []
+}

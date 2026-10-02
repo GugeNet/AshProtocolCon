@@ -1,0 +1,29 @@
+{
+  "id": "silt-dock",
+  "name": "Silt Dock",
+  "code": "DOC",
+  "x": 0,
+  "y": 2,
+  "exits": {
+    "north": "lantern-market",
+    "east": "flooded-underpass"
+  },
+  "descriptions": [
+    {
+      "text": "The dock is a rib of concrete over brown water that used to be a street. Brake-light lanterns hang on wire. Somewhere under the silt a tram bell still rings, once an hour, for nobody. North is the market noise. East, the underpass breathes cold."
+    },
+    {
+      "whenFlag": "coil_traded",
+      "text": "Coil's deckchair creaks like a private joke. The tin at his feet is empty of light. North, the village still trades. East, the underpass keeps its black water."
+    }
+  ],
+  "ground": [
+    {
+      "id": "frayed-cable"
+    }
+  ],
+  "npcs": [
+    "old-coil"
+  ],
+  "obstacles": []
+}

@@ -1,0 +1,22 @@
+{
+  "id": "lantern-market",
+  "name": "Lantern Market",
+  "code": "MRK",
+  "x": 0,
+  "y": 3,
+  "exits": {
+    "south": "silt-dock",
+    "north": "chapel-static",
+    "east": "scrap-yard"
+  },
+  "descriptions": [
+    {
+      "text": "Canvas roofs, coal braziers, the village that refused to die doing business in a whisper. Scrip changes hands. Rumors change owners. North, a laundromat prays. East, the scrap mountains. South is the dock you already know."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "mare-voss"
+  ],
+  "obstacles": []
+}

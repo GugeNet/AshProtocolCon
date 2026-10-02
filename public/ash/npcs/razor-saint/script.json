@@ -1,0 +1,52 @@
+{
+  "id": "razor-saint",
+  "name": "Razor Saint",
+  "aliases": [
+    "razor",
+    "saint",
+    "razor saint"
+  ],
+  "presence": "Razor Saint paces the shallow end in a coat of reflector tape, two blades, no hurry.",
+  "presenceWhen": [
+    {
+      "flag": "razor_passed",
+      "text": "Razor Saint sits on the pool edge counting his teeth, or what you left of the arrangement."
+    }
+  ],
+  "greeting": "\"Door tax. Twenty-two scrip, or a ceramic knife I can respect, or the other conversation.\" He nods at the floor like a congregation.",
+  "topics": {
+    "tax": {
+      "say": "\"Twenty-two. Or the knife. Killing me also works and is worse for both of our evenings. The grid behind me is not part of my tax. That's municipal.\""
+    },
+    "grid": {
+      "say": "\"Red light, south stair. It eats tapes, not blood. The ghost in the mast hands those out if you bring her a glass eye.\""
+    },
+    "wafer": {
+      "say": "\"I keep a black wafer in the coat. Juniper sells the twin and calls it a future. I call it ballast. You get mine if I stop being alive.\""
+    }
+  },
+  "trades": [
+    {
+      "give": "knife",
+      "setFlag": "razor_passed",
+      "onceFlag": "razor_knife",
+      "say": "Razor takes the ceramic knife, tests the edge on his thumb, and smiles without humor. \"Tax paid. The stair is yours. The grid is not my problem and not my mercy.\""
+    }
+  ],
+  "bribe": {
+    "cost": 22,
+    "setFlag": "razor_passed",
+    "say": "He counts twenty-two with insulting slowness, then steps off the stair. \"Go be municipal.\"",
+    "already": "\"Tax is paid. Stop showing me money. I might remember I like it.\""
+  },
+  "say": [],
+  "combat": {
+    "damage": 3,
+    "scrip": 16,
+    "onDeathFlags": [
+      "razor_passed",
+      "razor_dead"
+    ],
+    "onDeathSay": "Razor Saint folds into the shallow end, reflector tape still trying to be glorious. The stair is yours. So is whatever the coat was hiding."
+  }
+}

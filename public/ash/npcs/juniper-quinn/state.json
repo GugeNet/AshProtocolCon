@@ -1,0 +1,13 @@
+{
+  "id": "juniper-quinn",
+  "alive": true,
+  "hp": 8,
+  "maxHp": 8,
+  "hostile": false,
+  "mood": "price",
+  "inventory": [
+    "shard-b",
+    "insulated-gloves",
+    "stim"
+  ]
+}

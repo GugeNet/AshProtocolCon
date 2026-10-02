@@ -1,0 +1,35 @@
+{
+  "id": "protocol-gate",
+  "name": "Protocol Gate",
+  "code": "GAT",
+  "x": 3,
+  "y": -1,
+  "exits": {
+    "north": "vault-anteroom",
+    "south": "spire-core"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "gate_open",
+      "text": "A round chamber. The floor is a seal: a hand, a flame, an empty ring. North is the vault. South is a white stair that is not a stair yet."
+    },
+    {
+      "whenFlag": "gate_open",
+      "text": "The seal has unlocked with a sound like a tram bell. The copy of you is already fading at the edges. South is a white stair and the last room in the cartridge. North still pretends you can leave."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "archivist"
+  ],
+  "obstacles": [
+    {
+      "dir": "south",
+      "anyFlag": [
+        "gate_open"
+      ],
+      "fail": "The seal does not care about urgency. The copy of you waits for the word and for both metals.",
+      "pass": "You step onto the white stair. The cartridge has very little left to say, and it intends to say it."
+    }
+  ]
+}

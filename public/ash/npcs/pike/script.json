@@ -1,0 +1,65 @@
+{
+  "id": "pike",
+  "name": "Pike",
+  "aliases": [
+    "pike"
+  ],
+  "presence": "Pike fills the south door with his shoulders and a length of chain he uses as a rosary. He smiles like a toll.",
+  "presenceWhen": [
+    {
+      "flag": "pike_passed",
+      "text": "Pike has moved the chain. He nods like you are a receipt he already filed."
+    }
+  ],
+  "greeting": "\"South is a product. You can pay, you can bleed, or you can say the sentence Coil gives people. Those are the flavors.\"",
+  "topics": {
+    "south": {
+      "say": "\"Twelve scrip. Or a stim, I'm shaking and I hate that you can see it. Or Coil's name, said like he sent you and not like you guessed.\""
+    },
+    "coil": {
+      "say": "\"Old man on the dock. If he told you about the chapel, you're not a tourist. Say it like a password, not a eulogy.\""
+    },
+    "ash": {
+      "say": "\"I don't traffic in ghosts. I traffic in doors. South door. Focus.\""
+    }
+  },
+  "trades": [
+    {
+      "give": "stim",
+      "setFlag": "pike_passed",
+      "onceFlag": "pike_stim",
+      "say": "Pike palms the stim like a communion he doesn't deserve. The shake leaves his hand. \"Walk. Don't touch the tins.\""
+    }
+  ],
+  "bribe": {
+    "cost": 12,
+    "setFlag": "pike_passed",
+    "say": "Pike counts twelve like it might be counterfeit, then stands aside. \"South. Try not to become a moral lesson.\"",
+    "already": "\"You already bought the door. Use it before I invent a second price.\""
+  },
+  "say": [
+    {
+      "includes": "coil",
+      "requiresAnyFlags": [
+        "heard_coil_ash",
+        "coil_traded",
+        "coil_story"
+      ],
+      "setFlag": "pike_passed",
+      "say": "Pike snorts. \"Coil still collecting strays? Walk. Don't touch the tins.\" The south door becomes a door."
+    },
+    {
+      "includes": "coil",
+      "say": "Pike squints. \"Coil didn't send you. Coil sends people with a sentence about the chapel, not a name you overheard.\""
+    }
+  ],
+  "combat": {
+    "damage": 3,
+    "scrip": 14,
+    "onDeathFlags": [
+      "pike_passed",
+      "pike_dead"
+    ],
+    "onDeathSay": "Pike hits the crates on the way down. The chain rings once, liturgical and done. South is open because corpses are bad at tolls."
+  }
+}

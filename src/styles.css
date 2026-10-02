@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "VT323", ui-monospace, monospace;
+  --color-void: #110e09;
+  --color-panel: #1c1610;
+  --color-phosphor: #ffb000;
+  --color-dim: #c4a36a;
+  --color-ash: #9ad7c3;
+  --color-danger: #ff4d3a;
+  --color-line: #3d3226;
+  --color-ink: #140f09;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    height: 100%;
+    background: var(--color-void);
+    color: var(--color-phosphor);
+  }
+
+  body {
+    font-family: var(--font-mono);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--color-phosphor) 35%, transparent);
+  }
+
+  input {
+    caret-color: var(--color-phosphor);
+  }
+
+  ::selection {
+    background: var(--color-phosphor);
+    color: var(--color-ink);
+  }
+}
+
+.crt-scan {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    color-mix(in srgb, var(--color-ink) 28%, transparent) 3px
+  );
+  pointer-events: none;
+}
+
+.cursor-block {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  background: var(--color-phosphor);
+  transform: translateY(0.12em);
+  animation: blink 1.05s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor-block {
+    animation: none;
+  }
+
+  .crt-scan {
+    background-image: none;
+  }
+
+  body {
+    text-shadow: none;
+  }
+}

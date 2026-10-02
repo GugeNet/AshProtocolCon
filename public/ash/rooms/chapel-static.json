@@ -1,0 +1,32 @@
+{
+  "id": "chapel-static",
+  "name": "Chapel of Static",
+  "code": "CHP",
+  "x": 0,
+  "y": 4,
+  "exits": {
+    "south": "lantern-market"
+  },
+  "descriptions": [
+    {
+      "text": "A laundromat that became a church when the machines started answering. Dryers stand open like tabernacles. The radio on the altar is warm. South is the market, louder and less honest."
+    },
+    {
+      "whenFlag": "hymn_heard",
+      "text": "The radio has gone to a low hush, like a city breathing in its sleep. The question sits behind your eyes: what remains when the fire is spent. You know better than to be clever about it. South is the market."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "sister-static"
+  ],
+  "obstacles": [],
+  "onListen": {
+    "steps": [
+      {
+        "setFlag": "hymn_heard",
+        "say": "You kneel because the floor expects it. The dryers turn once, together. A voice — yours, sanded down — asks: what remains when the fire is spent? It does not answer. The word is the answer. It sits behind your teeth like grit. Take it to the copy of you, when you have both metals."
+      }
+    ]
+  }
+}

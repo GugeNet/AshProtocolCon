@@ -1,0 +1,62 @@
+{
+  "id": "old-coil",
+  "name": "Old Coil",
+  "aliases": [
+    "coil",
+    "old coil",
+    "old-coil"
+  ],
+  "presence": "Old Coil sits in a bolted deckchair, optic dark, hands busy with nothing.",
+  "presenceWhen": [
+    {
+      "flag": "coil_traded",
+      "text": "Old Coil turns the empty tin in his hands and looks, for him, almost kind."
+    }
+  ],
+  "greeting": "\"You selling, or drifting?\" Coil's voice is dry as the inside of a fuse.",
+  "topics": {
+    "ash": {
+      "say": "\"ASH ain't dead. She's coughing in the chapel radio, north of the market. Kneel. Listen. Don't get poetic at her.\"",
+      "setFlag": "heard_coil_ash"
+    },
+    "trade": {
+      "say": "\"Stim for a glowcapsule. The well eats light, and you'll want some that isn't yours. Fair?\""
+    },
+    "spire": {
+      "say": "\"The Spire still has a chair and a slot. People who go up there come back as weather. You look like weather.\""
+    },
+    "village": {
+      "say": "\"Cinder Reach trades because the alternative is honesty. Mare at the market. Hex in the bus. Pike if you enjoy doors with men in them.\""
+    }
+  },
+  "onTalk": [],
+  "trades": [
+    {
+      "give": "stim",
+      "receive": "glowcapsule",
+      "setFlag": "coil_traded",
+      "onceFlag": "coil_traded",
+      "say": "Coil pockets the stim and presses a glowcapsule into your palm. \"Don't drop it in the well. The well eats light, and then it eats the hand.\""
+    }
+  ],
+  "story": {
+    "setFlag": "coil_story",
+    "grantScrip": 6,
+    "onceFlag": "coil_story",
+    "say": "You tell him about the voice in the radio that used your mouth. Coil laughs once, a dry click, and tucks six scrip into your sleeve. \"For the telling. Don't spend it on kindness.\"",
+    "elseSay": "",
+    "already": "\"I already paid for that story. Go spend it before the market changes its mind.\""
+  },
+  "say": [
+    {
+      "includes": "ash",
+      "setFlag": "heard_coil_ash",
+      "say": "Coil nods at the north. \"Chapel. Kneel. The question is the whole sermon.\""
+    }
+  ],
+  "combat": {
+    "damage": 1,
+    "scrip": 4,
+    "onDeathSay": "Coil folds into the deckchair and stays there. The dock gets quieter in a way you will not enjoy. Four scrip in his tin, because even this has a price."
+  }
+}

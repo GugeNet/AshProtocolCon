@@ -1,0 +1,11 @@
+{
+  "id": "old-coil",
+  "alive": true,
+  "hp": 7,
+  "maxHp": 7,
+  "hostile": false,
+  "mood": "wary",
+  "inventory": [
+    "glowcapsule"
+  ]
+}

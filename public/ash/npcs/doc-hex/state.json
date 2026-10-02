@@ -1,0 +1,13 @@
+{
+  "id": "doc-hex",
+  "alive": true,
+  "hp": 7,
+  "maxHp": 7,
+  "hostile": false,
+  "mood": "tired",
+  "inventory": [
+    "stim",
+    "stim",
+    "breather"
+  ]
+}

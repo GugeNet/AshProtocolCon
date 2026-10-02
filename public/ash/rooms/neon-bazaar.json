@@ -1,0 +1,21 @@
+{
+  "id": "neon-bazaar",
+  "name": "Neon Bazaar",
+  "code": "BAZ",
+  "x": 4,
+  "y": 1,
+  "exits": {
+    "north": "ferryman-pier",
+    "west": "combat-pit"
+  },
+  "descriptions": [
+    {
+      "text": "Richer than the Lantern Market and worse for it. People laugh with their mouths only. Futures are written on a black-glass slate. North is the pier. West, the pit's side door, for customers who survive their shopping."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "juniper-quinn"
+  ],
+  "obstacles": []
+}

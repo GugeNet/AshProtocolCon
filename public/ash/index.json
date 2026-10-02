@@ -1,0 +1,39 @@
+{
+  "start": "silt-dock",
+  "rooms": [
+    "silt-dock",
+    "lantern-market",
+    "chapel-static",
+    "flooded-underpass",
+    "scrap-yard",
+    "glass-orchard",
+    "street-clinic",
+    "antenna-walk",
+    "smugglers-cut",
+    "ash-well",
+    "watchtower",
+    "black-canal",
+    "rooftop-wire",
+    "ferryman-pier",
+    "neon-bazaar",
+    "combat-pit",
+    "relay-nest",
+    "vault-anteroom",
+    "protocol-gate",
+    "spire-core"
+  ],
+  "npcs": [
+    "old-coil",
+    "mare-voss",
+    "sister-static",
+    "drone-mite",
+    "doc-hex",
+    "pike",
+    "sentry-kite",
+    "ferryman",
+    "razor-saint",
+    "juniper-quinn",
+    "ash-fragment",
+    "archivist"
+  ]
+}

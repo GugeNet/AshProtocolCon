@@ -1,0 +1,29 @@
+{
+  "id": "glass-orchard",
+  "name": "Glass Orchard",
+  "code": "ORC",
+  "x": 1,
+  "y": 4,
+  "exits": {
+    "south": "scrap-yard",
+    "east": "antenna-walk"
+  },
+  "descriptions": [
+    {
+      "text": "Trees of fused window-glass, grown in a heat that passed through and kept going. Wind makes a music you feel in your teeth. South is scrap. East, a catwalk ticks against a dead tower."
+    }
+  ],
+  "ground": [
+    {
+      "id": "optic-lens"
+    },
+    {
+      "id": "glass-slag"
+    },
+    {
+      "id": "clean-filter"
+    }
+  ],
+  "npcs": [],
+  "obstacles": []
+}

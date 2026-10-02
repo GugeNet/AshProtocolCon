@@ -1,0 +1,19 @@
+{
+  "id": "vault-anteroom",
+  "name": "Vault Anteroom",
+  "code": "VLT",
+  "x": 3,
+  "y": 0,
+  "exits": {
+    "north": "combat-pit",
+    "south": "protocol-gate"
+  },
+  "descriptions": [
+    {
+      "text": "Below the pit, a municipal vault stands open because someone was confident. Brushed steel, untouched by ash. It feels like trespass in a church that kept records. North climbs to the pit. South, a round chamber with your face in it."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": []
+}

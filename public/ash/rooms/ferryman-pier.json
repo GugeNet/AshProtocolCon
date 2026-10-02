@@ -1,0 +1,19 @@
+{
+  "id": "ferryman-pier",
+  "name": "Ferryman's Pier",
+  "code": "PIR",
+  "x": 4,
+  "y": 2,
+  "exits": {
+    "west": "black-canal",
+    "south": "neon-bazaar"
+  },
+  "descriptions": [
+    {
+      "text": "Neon that survived by being too cheap to die: a noodle bulb, a red arrow, a sign that says OPEN in three dead languages. The boards complain. West is the canal. South, the bazaar breathes perfume and solder."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": []
+}

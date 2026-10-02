@@ -1,0 +1,11 @@
+{
+  "id": "pike",
+  "alive": true,
+  "hp": 10,
+  "maxHp": 10,
+  "hostile": false,
+  "mood": "toll",
+  "inventory": [
+    "ferry-token"
+  ]
+}

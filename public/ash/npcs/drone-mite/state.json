@@ -1,0 +1,9 @@
+{
+  "id": "drone-mite",
+  "alive": true,
+  "hp": 6,
+  "maxHp": 6,
+  "hostile": true,
+  "mood": "patrol",
+  "inventory": []
+}

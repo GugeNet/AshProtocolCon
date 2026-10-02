@@ -1,0 +1,25 @@
+{
+  "id": "relay-nest",
+  "name": "Relay Nest",
+  "code": "REL",
+  "x": 4,
+  "y": 4,
+  "exits": {
+    "west": "watchtower"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "cipher_got",
+      "text": "The mast's crow-basket. Wind, copper, and a column of ash trying to be a person. West is the sentry's roof, and from here she looks almost kind."
+    },
+    {
+      "whenFlag": "cipher_got",
+      "text": "ASH has gone thin, the way a radio does when the song is over. The cipher tape is a warm line in your pocket. She mouths the same shape: the spire. West is down."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "ash-fragment"
+  ],
+  "obstacles": []
+}

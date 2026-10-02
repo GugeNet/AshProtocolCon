@@ -1,0 +1,28 @@
+{
+  "id": "flooded-underpass",
+  "name": "Flooded Underpass",
+  "code": "FLD",
+  "x": 1,
+  "y": 2,
+  "exits": {
+    "west": "silt-dock",
+    "east": "smugglers-cut"
+  },
+  "descriptions": [
+    {
+      "text": "Tiles from a transit authority that no longer exists. Water to the chest, black, with a rainbow that is not beautiful. Things bump your legs and do not apologize. West climbs back to the dock. East continues into the dark."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": [
+    {
+      "dir": "east",
+      "anyItem": [
+        "breather"
+      ],
+      "fail": "The east arch is a throat of black water. Chemical film burns your eyes. Without a breather you would be a story the canal tells.",
+      "pass": "The breather ticks against your teeth. You sink to the chest and walk the drowned hall."
+    }
+  ]
+}

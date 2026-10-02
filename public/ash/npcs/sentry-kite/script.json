@@ -1,0 +1,50 @@
+{
+  "id": "sentry-kite",
+  "name": "Sentry Kite",
+  "aliases": [
+    "kite",
+    "sentry",
+    "sentry kite"
+  ],
+  "presence": "Sentry Kite wears three coats and a rifle older than the ash. She has the tired authority of someone who still believes in doors.",
+  "presenceWhen": [
+    {
+      "flag": "kite_passed",
+      "text": "Kite keeps the rifle low. \"Don't make me learn your name,\" she says, which is her version of mercy."
+    }
+  ],
+  "greeting": "\"Clearance. One word. The radio on the walk knows it, if you know how to listen. I know how to shoot.\"",
+  "topics": {
+    "password": {
+      "say": "\"I don't give the word to people who ask me for the word. That's the whole job. Listen to the tower. Or try your luck, briefly.\""
+    },
+    "ash": {
+      "say": "\"The thing in the mast uses faces. Don't give it yours for free. A lens helps. It also makes the radio speak in complete sentences.\""
+    },
+    "relay": {
+      "say": "\"East is the nest. You don't go east on charm.\""
+    }
+  },
+  "trades": [],
+  "say": [
+    {
+      "includes": "cinder",
+      "requiresFlag": "password_known",
+      "setFlag": "kite_passed",
+      "say": "Kite's rifle dips. \"Clearance accepted.\" She looks tired of being correct. \"The nest is east. Don't sell her anything she asks to borrow.\""
+    },
+    {
+      "includes": "cinder",
+      "say": "Kite doesn't blink. \"That's a word, not a clearance. Come back when the tower has actually told you.\""
+    }
+  ],
+  "combat": {
+    "damage": 3,
+    "scrip": 10,
+    "onDeathFlags": [
+      "kite_passed",
+      "kite_dead"
+    ],
+    "onDeathSay": "Kite goes down still trying to rack the old rifle. The roof is yours, and so is a small shame. East is unguarded."
+  }
+}

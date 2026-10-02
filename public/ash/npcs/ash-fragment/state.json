@@ -1,0 +1,9 @@
+{
+  "id": "ash-fragment",
+  "alive": true,
+  "hp": 20,
+  "maxHp": 20,
+  "hostile": false,
+  "mood": "signal",
+  "inventory": []
+}

@@ -1,0 +1,14 @@
+{
+  "id": "mare-voss",
+  "alive": true,
+  "hp": 8,
+  "maxHp": 8,
+  "hostile": false,
+  "mood": "sharp",
+  "inventory": [
+    "breather",
+    "knife",
+    "stim",
+    "stim"
+  ]
+}

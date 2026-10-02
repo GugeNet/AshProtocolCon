@@ -1,0 +1,44 @@
+{
+  "id": "watchtower",
+  "name": "Watchtower",
+  "code": "WTC",
+  "x": 3,
+  "y": 4,
+  "exits": {
+    "west": "antenna-walk",
+    "east": "relay-nest",
+    "south": "rooftop-wire"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "kite_passed",
+      "text": "A parking-garage roof with one standing stair. The relay mast to the east ticks like a metal heart. South, a rooftop crossed by a skinned cable. West is the antenna walk."
+    },
+    {
+      "whenFlag": "kite_passed",
+      "text": "The roof is just a roof, which is a luxury. East, the relay still ticks. South, the live cable. West, the radio that taught you a word."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "sentry-kite"
+  ],
+  "obstacles": [
+    {
+      "dir": "east",
+      "anyFlag": [
+        "kite_passed"
+      ],
+      "fail": "Kite's rifle considers your chest. \"Clearance, or a very short argument.\"",
+      "pass": "Kite lowers the rifle a fraction. \"Don't waste the word.\" The relay mast takes you in."
+    },
+    {
+      "dir": "south",
+      "anyItem": [
+        "insulated-gloves"
+      ],
+      "fail": "The south cable is live, skinned, and humming. Your fillings ache. Insulated gloves, or a closed casket.",
+      "pass": "The gloves go dull and hot. You duck the live cable and drop to the rooftop."
+    }
+  ]
+}

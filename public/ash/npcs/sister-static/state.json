@@ -1,0 +1,9 @@
+{
+  "id": "sister-static",
+  "alive": true,
+  "hp": 4,
+  "maxHp": 4,
+  "hostile": false,
+  "mood": "rapt",
+  "inventory": []
+}

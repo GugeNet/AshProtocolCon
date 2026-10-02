@@ -1,0 +1,19 @@
+{
+  "id": "spire-core",
+  "name": "Spire Core",
+  "code": "COR",
+  "x": 3,
+  "y": -2,
+  "exits": {
+    "north": "protocol-gate"
+  },
+  "descriptions": [
+    {
+      "text": "The core is small. That is the insult. A chair, a slot, a window on Cinder Reach. You fit the protocol key. The city inhales.\n\nLights run the drowned streets like a pulse returning to a wrist. Somewhere a market will open in daylight and not know who to thank. ASH says your name without static.\n\nYou have reached the final room.\n\nPROTOCOL RESTORED."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": [],
+  "win": true
+}

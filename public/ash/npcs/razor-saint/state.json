@@ -1,0 +1,11 @@
+{
+  "id": "razor-saint",
+  "alive": true,
+  "hp": 12,
+  "maxHp": 12,
+  "hostile": false,
+  "mood": "showman",
+  "inventory": [
+    "shard-b"
+  ]
+}

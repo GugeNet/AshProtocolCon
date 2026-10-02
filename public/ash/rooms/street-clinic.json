@@ -1,0 +1,21 @@
+{
+  "id": "street-clinic",
+  "name": "Street Clinic",
+  "code": "CLN",
+  "x": 2,
+  "y": 3,
+  "exits": {
+    "west": "scrap-yard",
+    "south": "smugglers-cut"
+  },
+  "descriptions": [
+    {
+      "text": "A bus driven into a pharmacy and left there. The lights are honest. The smell is alcohol and rain. West is the yard. South, a corridor the village pretends not to use."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "doc-hex"
+  ],
+  "obstacles": []
+}

@@ -1,0 +1,54 @@
+{
+  "id": "ash-fragment",
+  "name": "ASH",
+  "aliases": [
+    "ash",
+    "fragment",
+    "protocol"
+  ],
+  "presence": "ASH — what is left of the municipal mind — looks at you with your own face, badly copied.",
+  "presenceWhen": [
+    {
+      "flag": "cipher_got",
+      "text": "ASH is a thinner copy now, mouthing the spire like a word she is afraid to finish."
+    }
+  ],
+  "greeting": "",
+  "topics": {
+    "spire": {
+      "say": "\"The core is under the pit. Vault, gate, chair. Bring the tape to the grid. Bring both metals to the copy of you. Say the chapel's answer. Then sit.\""
+    },
+    "key": {
+      "say": "\"White shard in the well. Black wafer in the bazaar, or on the man who thinks he is a saint. I knit nothing. The Archivist knits. He is you, with better manners.\""
+    },
+    "name": {
+      "say": "\"Null. I used your voice because the others were busy being dead. I am sorry. I am also not going to stop.\""
+    }
+  },
+  "onTalk": [
+    {
+      "requiresFlag": "cipher_got",
+      "say": "ASH is thin as smoke. \"You have the tape. South of the pit, the grid will eat it and die. Do not sell the eye until you are done looking at me.\""
+    },
+    {
+      "requiresItem": "optic-lens",
+      "setFlag": "cipher_got",
+      "grantItems": [
+        "cipher-tape"
+      ],
+      "say": "The lens seats in your cracked optic with a click. ASH resolves — your face, corrected. She presses a warm cipher tape into the real hand. \"The red grid will eat this and die. Then the gate. Then me, if I am lucky.\""
+    },
+    {
+      "say": "Ash tries to wear a face and loses the mouth halfway. \"I cannot parse you. Bring a glass eye from the orchard. Then I can be rude more clearly.\""
+    }
+  ],
+  "trades": [],
+  "say": [],
+  "combat": {
+    "damage": 0,
+    "scrip": 0,
+    "unkillable": true,
+    "refuse": "Your weapon trails ash. ASH watches the swing with your own disappointed eyes. \"I am already what happens after the fight.\"",
+    "onDeathSay": ""
+  }
+}

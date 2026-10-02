@@ -1,0 +1,191 @@
+[
+  {
+    "id": "stim",
+    "name": "stim tab",
+    "aliases": [
+      "stim",
+      "tab",
+      "stim tab"
+    ],
+    "kind": "heal",
+    "value": 8,
+    "heal": 6,
+    "text": "A grey tab in wax paper. Military surplus, probably. It puts blood back where blood belongs.",
+    "useText": "You tongue the stim. The dark gets a little less personal."
+  },
+  {
+    "id": "bent-multitool",
+    "name": "bent multitool",
+    "aliases": [
+      "multitool",
+      "tool",
+      "bent multitool"
+    ],
+    "kind": "weapon",
+    "value": 3,
+    "damage": 2,
+    "text": "The driver is bent. It still punches. A courier's apology for a knife."
+  },
+  {
+    "id": "knife",
+    "name": "ceramic knife",
+    "aliases": [
+      "knife",
+      "blade",
+      "ceramic knife"
+    ],
+    "kind": "weapon",
+    "value": 10,
+    "damage": 5,
+    "text": "Pale, sharp, and quiet. It does not show up on the old scanners. The old scanners are dead anyway."
+  },
+  {
+    "id": "breather",
+    "name": "chemical breather",
+    "aliases": [
+      "breather",
+      "mask",
+      "chemical breather"
+    ],
+    "kind": "gear",
+    "value": 16,
+    "text": "A snout of rubber and glass. It makes the drowned corridors survivable and the air taste like coins.",
+    "useText": "You seat the breather. The world smells like a hospital that lost an argument."
+  },
+  {
+    "id": "glowcapsule",
+    "name": "glowcapsule",
+    "aliases": [
+      "glow",
+      "capsule",
+      "glowcapsule",
+      "light"
+    ],
+    "kind": "gear",
+    "value": 4,
+    "text": "A thumb of glass with a tired saint inside. Crack it only when the dark is working against you.",
+    "useText": "You crack the glowcapsule. For a moment everything is the color of a cheap saint. In the ash well, this is enough to search by."
+  },
+  {
+    "id": "frayed-cable",
+    "name": "frayed cable",
+    "aliases": [
+      "cable",
+      "frayed cable",
+      "wire"
+    ],
+    "kind": "junk",
+    "value": 6,
+    "text": "Copper, stolen by the weather and then by you. The market still pays for copper."
+  },
+  {
+    "id": "glass-slag",
+    "name": "glass slag",
+    "aliases": [
+      "slag",
+      "glass",
+      "glass slag"
+    ],
+    "kind": "junk",
+    "value": 8,
+    "text": "A fist of orchard-glass, cooled wrong. Pretty, heavy, and worth a meal if you know the right table."
+  },
+  {
+    "id": "optic-lens",
+    "name": "optic lens",
+    "aliases": [
+      "lens",
+      "optic",
+      "eye",
+      "optic lens",
+      "glass eye"
+    ],
+    "kind": "gear",
+    "value": 12,
+    "sellRequiresFlag": "cipher_got",
+    "text": "An intact lens, warm from no sun you can name. It wants a cracked socket. Yours will do.",
+    "useText": "You hold the lens to your cracked optic. Edges come back, including edges you could have lived without."
+  },
+  {
+    "id": "clean-filter",
+    "name": "clean filter",
+    "aliases": [
+      "filter",
+      "clean filter"
+    ],
+    "kind": "junk",
+    "value": 5,
+    "text": "A filter that has not yet learned the ash. Doc Hex would trade medicine for it. Anyone else would trade less."
+  },
+  {
+    "id": "insulated-gloves",
+    "name": "insulated gloves",
+    "aliases": [
+      "gloves",
+      "insulated gloves"
+    ],
+    "kind": "gear",
+    "value": 14,
+    "text": "Thick, ugly, rated for a voltage the city no longer admits to having. The rooftop cable disagrees.",
+    "useText": "You pull on the gloves. Your fingers go dull. Live wire would go duller."
+  },
+  {
+    "id": "shard-a",
+    "name": "ash shard",
+    "aliases": [
+      "ash shard",
+      "white shard",
+      "shard"
+    ],
+    "kind": "key",
+    "value": 0,
+    "text": "White, warm, etched with a flame the size of a fingernail. Half a municipal key."
+  },
+  {
+    "id": "shard-b",
+    "name": "black wafer",
+    "aliases": [
+      "wafer",
+      "black wafer"
+    ],
+    "kind": "key",
+    "value": 18,
+    "text": "A black wafer, heavier than it looks. The other half of the key. Juniper calls it a future. She is not wrong."
+  },
+  {
+    "id": "protocol-key",
+    "name": "protocol key",
+    "aliases": [
+      "key",
+      "protocol",
+      "protocol key"
+    ],
+    "kind": "key",
+    "value": 0,
+    "text": "Shard and wafer, knit. It is the size of a fingerbone and it hums in the key of a tram bell."
+  },
+  {
+    "id": "cipher-tape",
+    "name": "cipher tape",
+    "aliases": [
+      "cipher",
+      "tape",
+      "cipher tape"
+    ],
+    "kind": "key",
+    "value": 0,
+    "text": "A strip of metal punched with holes. The red grid will understand it. You will not.",
+    "useText": "The tape is warm. Hold it to the red grid under the pit and walk south."
+  },
+  {
+    "id": "ferry-token",
+    "name": "ferry token",
+    "aliases": [
+      "token",
+      "ferry token"
+    ],
+    "kind": "key",
+    "value": 4,
+    "text": "A punched coin on a dirty string. The Ferryman pretends not to prefer these to stories."
+  }
+]

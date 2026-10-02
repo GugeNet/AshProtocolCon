@@ -1,0 +1,40 @@
+{
+  "id": "ash-well",
+  "name": "Ash Well",
+  "code": "WEL",
+  "x": 2,
+  "y": 1,
+  "exits": {
+    "north": "smugglers-cut",
+    "east": "combat-pit"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "shard_a_found",
+      "text": "A shaft where a fountain used to be. Ash falls upward, which is wrong. Your light dies a few feet from your hand. North climbs to the smugglers. East, something metal is cheering for blood."
+    },
+    {
+      "whenFlag": "shard_a_found",
+      "text": "The well has given up its white shard and gone back to being a hole. Your footprints circle the rim. North, Pike's corridor. East, the pit."
+    }
+  ],
+  "ground": [],
+  "npcs": [],
+  "obstacles": [],
+  "onSearch": {
+    "requiresAnyFlags": [
+      "hymn_heard"
+    ],
+    "requiresAnyItems": [
+      "glowcapsule"
+    ],
+    "fail": "Your hands find ash and nothing with edges. You need the glowcapsule, or the hymn still burning behind your eyes.",
+    "onceFlag": "shard_a_found",
+    "grantItems": [
+      "shard-a"
+    ],
+    "grantScrip": 10,
+    "say": "Light — carried or remembered — catches a white sliver in the ash. An ash shard, warm, etched with a tiny flame. Under it, a wet roll of scrip, ten exactly, because the city kept receipts even while it died.",
+    "already": "The well is empty of metal. You already took the shard."
+  }
+}

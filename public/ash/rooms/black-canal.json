@@ -1,0 +1,36 @@
+{
+  "id": "black-canal",
+  "name": "Black Canal",
+  "code": "CNL",
+  "x": 3,
+  "y": 2,
+  "exits": {
+    "north": "rooftop-wire",
+    "south": "combat-pit",
+    "east": "ferryman-pier"
+  },
+  "descriptions": [
+    {
+      "unlessFlag": "ferryman_paid",
+      "text": "A straight cut of oil water between warehouses. A skiff bumps the concrete. North, a roof. South, floodlights and a drained pool. East is the far pier, and it is not free."
+    },
+    {
+      "whenFlag": "ferryman_paid",
+      "text": "The skiff rocks, already yours for as long as the canal remembers. East is neon that should not still have power. South is the pit. North is the roof and its rude cable."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "ferryman"
+  ],
+  "obstacles": [
+    {
+      "dir": "east",
+      "anyFlag": [
+        "ferryman_paid"
+      ],
+      "fail": "The skiff does not move for hope. The Ferryman waits inside the yellow slicker. Pay him, tell him a real story, or show a token.",
+      "pass": "The pole finds the bottom. Oily water opens. The far pier arrives like a favor you will repay."
+    }
+  ]
+}
