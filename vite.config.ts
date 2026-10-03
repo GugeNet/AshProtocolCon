@@ -1,7 +1,10 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import type { Plugin } from "vite";
+import type { Plugin, PreviewServer, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
+import { logFileName, mergeJournal, personFileName } from "./src/game/journal.ts";
 
 const ollamaProxy = {
   "/ollama": {
@@ -166,6 +169,107 @@ async function forwardOllama(req: HttpReq, res: HttpRes) {
   done = true;
 }
 
+const journalsRoot = resolve("journals");
+const npcRoot = resolve("public/ash/npcs");
+
+function insideJournals(fileName: string): string | null {
+  if (!fileName || fileName !== fileName.replace(/[\\/]/g, "")) return null;
+  if (!fileName.endsWith(".log") && !fileName.endsWith(".memory.txt")) return null;
+  const full = resolve(journalsRoot, fileName);
+  const root = journalsRoot.endsWith(sep) ? journalsRoot : journalsRoot + sep;
+  if (!full.startsWith(root)) return null;
+  return full;
+}
+
+function journalFile(url: string): string | null {
+  const path = url.split("?")[0] ?? "";
+  if (!path.startsWith("/journals/")) return null;
+  let fileName = path.slice("/journals/".length);
+  try {
+    fileName = decodeURIComponent(fileName);
+  } catch {
+    return null;
+  }
+  return insideJournals(fileName);
+}
+
+function writeJournals(body: Uint8Array): void {
+  const row = asRecord(JSON.parse(textOf(body)));
+  const people = Array.isArray(row?.people) ? row.people : [];
+  mkdirSync(journalsRoot, { recursive: true });
+  for (const entry of people) {
+    const person = asRecord(entry);
+    const id = typeof person?.id === "string" ? person.id : "";
+    const name = typeof person?.name === "string" ? person.name : "";
+    if (!/^[a-z0-9-]+$/.test(id) || !existsSync(join(npcRoot, id))) continue;
+    if (!name || personFileName(name) === "unnamed") continue;
+    const lines = Array.isArray(person?.log)
+      ? person.log.filter((item): item is string => typeof item === "string")
+      : [];
+    const target = insideJournals(logFileName(name));
+    if (!target) continue;
+    const previous = existsSync(target) ? readFileSync(target, "utf8") : "";
+    writeFileSync(target, mergeJournal(previous, lines), "utf8");
+  }
+}
+
+function serveJournal(req: HttpReq, res: HttpRes): void {
+  if (req.method === "GET") {
+    const file = journalFile(req.url ?? "");
+    if (!file || !existsSync(file)) {
+      res.statusCode = 404;
+      res.end("");
+      return;
+    }
+    res.writeHead(200, {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    res.end(readFileSync(file));
+    return;
+  }
+  if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/journals") {
+    void readBody(req)
+      .then((body) => {
+        writeJournals(body);
+        if (!res.writableEnded) {
+          res.statusCode = 204;
+          res.end();
+        }
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "The journal was not written.";
+        console.log(`[journal] ${message}`);
+        if (!res.headersSent) {
+          res.statusCode = 400;
+          res.end(message);
+        }
+      });
+    return;
+  }
+  res.statusCode = 404;
+  res.end("");
+}
+
+function npcJournal(): Plugin {
+  const attach = (server: ViteDevServer | PreviewServer) => {
+    server.middlewares.use((req, res, next) => {
+      const incoming = req as HttpReq;
+      const url = incoming.url ?? "";
+      if (url !== "/journals" && !url.startsWith("/journals/") && !url.startsWith("/journals?")) {
+        next();
+        return;
+      }
+      serveJournal(incoming, res as HttpRes);
+    });
+  };
+  return {
+    name: "npc-journal",
+    configureServer: attach,
+    configurePreviewServer: attach,
+  };
+}
+
 function ollamaConsole(): Plugin {
   return {
     name: "ollama-console",
@@ -193,7 +297,7 @@ function ollamaConsole(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), ollamaConsole()],
+  plugins: [react(), tailwindcss(), npcJournal(), ollamaConsole()],
   server: { proxy: ollamaProxy },
   preview: { proxy: ollamaProxy },
 });

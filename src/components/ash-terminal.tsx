@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { SAVE_KEY, applyCommand, describeRoom, introLines, isCartridgeMeta } from "../game/engine";
 import { inputWaits, playInput } from "../game/harness";
+import { publishJournals } from "../game/journal";
 import { loadWorld } from "../game/load";
+import { repairLogs } from "../game/observe";
 import { initialState } from "../game/world";
 import type { GameLine, GameState, World } from "../game/types";
 
@@ -82,9 +84,14 @@ export function AshTerminal() {
     }
   }, [screen, live]);
 
-  function commitGame(next: GameState) {
+  function commitGame(next: GameState, source: World | null = world) {
     gameRef.current = next;
     setGame(next);
+    if (!source) return;
+    void publishJournals(source, next).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "The journal was not written.";
+      console.warn(message);
+    });
   }
 
   function stamp(batch: GameLine[]): Row[] {
@@ -107,8 +114,8 @@ export function AshTerminal() {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw) as GameState;
-      if (parsed.version !== 1 || !current.rooms[parsed.roomId]) return null;
-      return parsed;
+      if (parsed.version !== 1 || !parsed.npcs || !current.rooms[parsed.roomId]) return null;
+      return repairLogs(parsed);
     } catch {
       return null;
     }
@@ -126,7 +133,7 @@ export function AshTerminal() {
     bootTimer.current = [];
     listenAbort.current?.abort();
     setHearing(false);
-    commitGame(state);
+    commitGame(state, current);
     setScreen("play");
     setDraft("");
     setArmed(null);

@@ -1,3 +1,4 @@
+import { noteArrival } from "./observe.ts";
 import type {
   Dir,
   GameState,
@@ -120,13 +121,14 @@ export function initialState(world: World): GameState {
       maxHp: npc.state.maxHp,
       hostile: npc.state.hostile,
       inventory: [...npc.state.inventory],
+      log: [],
     };
   }
   const roomItems: Record<string, string[]> = {};
   for (const room of Object.values(world.rooms)) {
     roomItems[room.id] = room.ground.map((g) => g.id);
   }
-  return {
+  const state: GameState = {
     version: 1,
     mode: "play",
     roomId: world.start,
@@ -143,4 +145,6 @@ export function initialState(world: World): GameState {
     roomItems,
     combatWith: null,
   };
+  noteArrival(world, state, world.start);
+  return state;
 }

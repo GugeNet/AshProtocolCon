@@ -1,3 +1,16 @@
+import {
+  blockedDirs,
+  englishList,
+  noteArrival,
+  noteOpenedDoors,
+  noteSpeech,
+  quote,
+  repairLogs,
+  tradeNote,
+  witness,
+  witnessAs,
+  witnesses,
+} from "./observe.ts";
 import type {
   CommandResult,
   Dir,
@@ -130,6 +143,58 @@ function wordHas(text: string, needle: string): boolean {
 
 function itemName(world: World, id: string): string {
   return world.items[id]?.name ?? id;
+}
+
+function named(world: World, ids: string[]): string {
+  return englishList(ids.map((id) => itemName(world, id)));
+}
+
+function noteTalk(world: World, state: GameState, npcId: string, topic?: string): void {
+  const name = world.npcs[npcId].script.name;
+  const about = topic ? ` about ${topic}` : "";
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    `Null talks to me${about}.`,
+    `Null talks to ${name}${about}.`,
+  );
+}
+
+function noteGift(world: World, state: GameState, npcId: string, ids: string[]): void {
+  if (!ids.length) return;
+  const name = world.npcs[npcId].script.name;
+  const goods = named(world, ids);
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    `I give Null ${goods}.`,
+    `${name} gives Null ${goods}.`,
+  );
+}
+
+function noteScrip(world: World, state: GameState, npcId: string, amount: number): void {
+  if (!amount) return;
+  const name = world.npcs[npcId].script.name;
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    `I give Null ${amount} scrip.`,
+    `${name} gives Null ${amount} scrip.`,
+  );
+}
+
+function noteOffer(world: World, state: GameState, npcId: string, item: string): void {
+  const name = world.npcs[npcId].script.name;
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    `Null offers ${item} to me.`,
+    `Null offers ${item} to ${name}.`,
+  );
 }
 
 function hasItem(state: GameState, id: string): boolean {
@@ -448,10 +513,11 @@ function canSell(item: ItemDef, state: GameState, buys: ItemDef["kind"][]): bool
   return buys.includes(item.kind);
 }
 
-function hurt(state: GameState, amount: number, lines: GameLine[], source: string): boolean {
+function hurt(world: World, state: GameState, amount: number, lines: GameLine[], source: string): boolean {
   state.hp = Math.max(0, state.hp - amount);
   lines.push(line("combat", `${source} (-${amount} HP, ${state.hp} left).`));
   if (state.hp <= 0) {
+    witness(state, witnesses(world, state), "Null falls.");
     state.mode = "dead";
     state.combatWith = null;
     lines.push(
@@ -468,6 +534,8 @@ function hurt(state: GameState, amount: number, lines: GameLine[], source: strin
 function killNpc(world: World, state: GameState, npcId: string, lines: GameLine[]) {
   const script = world.npcs[npcId].script;
   const rt = state.npcs[npcId];
+  const watching = witnesses(world, state);
+  witnessAs(state, watching, npcId, "I fall.", `${script.name} falls.`);
   rt.hp = 0;
   rt.alive = false;
   rt.hostile = false;
@@ -480,6 +548,9 @@ function killNpc(world: World, state: GameState, npcId: string, lines: GameLine[
   rt.inventory = [];
   state.scrip += script.combat.scrip;
   for (const flag of script.combat.onDeathFlags ?? []) state.flags[flag] = true;
+  const left = witnesses(world, state);
+  if (dropped.length) witness(state, left, `${script.name} drops ${englishList(dropped)}.`);
+  if (script.combat.scrip > 0) witness(state, left, `Null takes ${script.combat.scrip} scrip.`);
   lines.push(line("combat", script.combat.onDeathSay));
   if (script.combat.scrip > 0) {
     lines.push(line("good", `You take ${script.combat.scrip} scrip.`));
@@ -493,7 +564,14 @@ function retaliate(world: World, state: GameState, npcId: string, lines: GameLin
   const script = world.npcs[npcId].script;
   const rt = state.npcs[npcId];
   if (!rt.alive) return false;
-  return hurt(state, script.combat.damage, lines, `${script.name} hits you`);
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    "I hit Null.",
+    `${script.name} hits Null.`,
+  );
+  return hurt(world, state, script.combat.damage, lines, `${script.name} hits you`);
 }
 
 function endRank(state: GameState): string {
@@ -516,15 +594,20 @@ function winLines(state: GameState): GameLine[] {
   ];
 }
 
-function move(world: World, state: GameState, dir: Dir): GameLine[] {
+function move(world: World, state: GameState, dir: Dir, how: "goes" | "flees" = "goes"): GameLine[] {
   const room = world.rooms[state.roomId];
+  const origin = state.roomId;
   const destId = room.exits[dir];
   if (!destId) {
+    witness(state, witnesses(world, state, origin), `Null tries to go ${dir}.`);
     return [line("warn", `No passage ${dir}. Sintered glass, posters, and the idea of a wall.`)];
   }
   const obstacles = room.obstacles.filter((o) => o.dir === dir);
   for (const obstacle of obstacles) {
-    if (!obstacleOpen(state, obstacle)) return [line("warn", obstacle.fail)];
+    if (!obstacleOpen(state, obstacle)) {
+      witness(state, witnesses(world, state, origin), `Null tries to go ${dir}.`);
+      return [line("warn", obstacle.fail)];
+    }
   }
   const lines: GameLine[] = [];
   for (const obstacle of obstacles) {
@@ -537,9 +620,11 @@ function move(world: World, state: GameState, dir: Dir): GameLine[] {
     }
     state.combatWith = null;
   }
+  witness(state, witnesses(world, state, origin), `Null ${how} ${dir}.`);
   state.previousRoomId = state.roomId;
   state.roomId = destId;
   if (!state.visited.includes(destId)) state.visited.push(destId);
+  noteArrival(world, state, destId);
   lines.push(...describeRoom(world, state));
   const dest = world.rooms[destId];
   if (dest.win) {
@@ -551,6 +636,8 @@ function move(world: World, state: GameState, dir: Dir): GameLine[] {
 
 function doSearch(world: World, state: GameState): GameLine[] {
   const room = world.rooms[state.roomId];
+  const watching = witnesses(world, state);
+  witness(state, watching, "Null searches.");
   const action = room.onSearch;
   if (!action) {
     const stuff = visibleGround(world, state, room);
@@ -572,17 +659,25 @@ function doSearch(world: World, state: GameState): GameLine[] {
   state.flags[action.onceFlag] = true;
   for (const id of action.grantItems ?? []) addItem(state, id);
   if (action.grantScrip) state.scrip += action.grantScrip;
+  const found = [
+    ...(action.grantItems?.length ? [named(world, action.grantItems)] : []),
+    ...(action.grantScrip ? [`${action.grantScrip} scrip`] : []),
+  ];
+  if (found.length) witness(state, watching, `Null finds ${englishList(found)}.`);
   return [line("good", action.say)];
 }
 
 function doListen(world: World, state: GameState): GameLine[] {
   const room = world.rooms[state.roomId];
+  const watching = witnesses(world, state);
+  witness(state, watching, "Null listens.");
   const action = room.onListen;
   if (!action) return [line("body", "You listen. The city chews itself, somewhere else.")];
   if (!action.counter) {
     const step = action.steps[0];
     if (!step) return [line("body", "Silence, which is a kind of answer.")];
     if (step.setFlag) state.flags[step.setFlag] = true;
+    witness(state, watching, `The room says ${quote(step.say)}`);
     return [line("speech", step.say)];
   }
   const n = (state.counters[action.counter] ?? 0) + 1;
@@ -593,6 +688,7 @@ function doListen(world: World, state: GameState): GameLine[] {
   const step = withItem ?? plain;
   if (!step) return [line("body", "Only wind, and the wind is out of new words.")];
   if (step.setFlag) state.flags[step.setFlag] = true;
+  witness(state, watching, `The room says ${quote(step.say)}`);
   return [line("speech", step.say)];
 }
 
@@ -601,12 +697,15 @@ function doDrop(world: World, state: GameState, target: string): GameLine[] {
   if (!item) return [line("warn", `You are not carrying ${target}.`)];
   removeItem(state, item.id);
   state.roomItems[state.roomId].push(item.id);
+  witness(state, witnesses(world, state), `Null drops ${item.name}.`);
   return [line("body", `Dropped: ${item.name}.`)];
 }
 
 function doExamine(world: World, state: GameState, target: string): GameLine[] {
   const q = target.toLowerCase();
+  const watching = witnesses(world, state);
   if (/^(me|self|myself|null)$/.test(q)) {
+    witness(state, watching, "Null looks at himself.");
     return [
       line(
         "body",
@@ -619,6 +718,13 @@ function doExamine(world: World, state: GameState, target: string): GameLine[] {
   if (npcId && state.npcs[npcId].alive) {
     const script = world.npcs[npcId].script;
     const rt = state.npcs[npcId];
+    witnessAs(
+      state,
+      watching,
+      npcId,
+      "Null looks at me.",
+      `Null looks at ${script.name}.`,
+    );
     return [
       line(
         "speech",
@@ -628,6 +734,7 @@ function doExamine(world: World, state: GameState, target: string): GameLine[] {
   }
   const item = matchItem(world, target, [...state.inventory, ...visibleGround(world, state, room)]);
   if (!item) return [line("warn", `You see no ${target} worth a longer look.`)];
+  witness(state, watching, `Null looks at ${item.name}.`);
   return [line("body", item.text)];
 }
 
@@ -639,8 +746,10 @@ function doUse(world: World, state: GameState, target: string): GameLine[] {
     removeItem(state, item.id);
     const before = state.hp;
     state.hp = Math.min(state.maxHp, state.hp + (item.heal ?? 0));
+    witness(state, witnesses(world, state), `Null uses ${item.name}.`);
     return [line("good", `You take the ${item.name}. HP ${before} → ${state.hp}.`)];
   }
+  witness(state, witnesses(world, state), `Null uses ${item.name}.`);
   if (item.useText) return [line("body", item.useText)];
   return [line("body", `You fuss with the ${item.name}. The room declines to change.`)];
 }
@@ -652,6 +761,7 @@ function doTalk(world: World, state: GameState, target: string, topic?: string):
   if (topic) {
     const key = matchTopic(script, topic);
     if (!key) {
+      noteTalk(world, state, npcId, topic);
       const hint = topicHint(script);
       return [
         line("speech", `${script.name} has nothing to say about that.`),
@@ -660,21 +770,27 @@ function doTalk(world: World, state: GameState, target: string, topic?: string):
     }
     const entry = script.topics[key];
     if (entry.setFlag) state.flags[entry.setFlag] = true;
+    noteTalk(world, state, npcId, topic);
+    noteSpeech(world, state, state.roomId, npcId, entry.say);
     return [line("speech", entry.say)];
   }
   if (script.onTalk?.length) {
     const rule = script.onTalk.find((candidate) => talkOk(state, candidate));
     if (rule) {
       if (rule.setFlag) state.flags[rule.setFlag] = true;
-      for (const id of rule.grantItems ?? []) {
-        if (!hasItem(state, id)) addItem(state, id);
-      }
+      const granted = (rule.grantItems ?? []).filter((id) => !hasItem(state, id));
+      for (const id of granted) addItem(state, id);
+      noteTalk(world, state, npcId);
+      noteSpeech(world, state, state.roomId, npcId, rule.say);
+      noteGift(world, state, npcId, granted);
       const lines = [line("speech", rule.say)];
       const hint = topicHint(script);
       if (hint) lines.push(hint);
       return lines;
     }
   }
+  noteTalk(world, state, npcId);
+  noteSpeech(world, state, state.roomId, npcId, script.greeting);
   const lines = [line("speech", script.greeting)];
   const hint = topicHint(script);
   if (hint) lines.push(hint);
@@ -712,8 +828,16 @@ function doSay(world: World, state: GameState, text: string): GameLine[] {
       recognized = true;
       if (!sayOk(state, rule)) continue;
       if (rule.setFlag) state.flags[rule.setFlag] = true;
-      for (const id of rule.consumeItems ?? []) removeItem(state, id);
+      const consumed: string[] = [];
+      for (const id of rule.consumeItems ?? []) {
+        if (removeItem(state, id)) consumed.push(id);
+      }
       for (const id of rule.grantItems ?? []) addItem(state, id);
+      noteSpeech(world, state, state.roomId, npcId, rule.say);
+      if (consumed.length) {
+        witness(state, witnesses(world, state), `Null hands over ${named(world, consumed)}.`);
+      }
+      noteGift(world, state, npcId, rule.grantItems ?? []);
       return [line("speech", rule.say)];
     }
   }
@@ -730,20 +854,30 @@ function doGive(world: World, state: GameState, itemQuery: string, npcQuery: str
   if (!npcId) return [line("warn", "No one here to take it.")];
   const script = world.npcs[npcId].script;
   const trade = script.trades.find((t) => t.give === item.id);
-  if (!trade) return [line("speech", `${script.name} looks at the ${item.name} and does not want it.`)];
+  if (!trade) {
+    noteOffer(world, state, npcId, item.name);
+    return [line("speech", `${script.name} looks at the ${item.name} and does not want it.`)];
+  }
   if (trade.onceFlag && state.flags[trade.onceFlag]) {
+    noteOffer(world, state, npcId, item.name);
     return [line("speech", `${script.name} has already taken that kind of deal.`)];
   }
   const rt = state.npcs[npcId];
   if (trade.receive) {
     const held = rt.inventory.indexOf(trade.receive);
-    if (held < 0) return [line("speech", `${script.name} has nothing left to give you for that.`)];
+    if (held < 0) {
+      noteOffer(world, state, npcId, item.name);
+      return [line("speech", `${script.name} has nothing left to give you for that.`)];
+    }
     rt.inventory.splice(held, 1);
     addItem(state, trade.receive);
   }
   removeItem(state, item.id);
   if (trade.setFlag) state.flags[trade.setFlag] = true;
   if (trade.onceFlag) state.flags[trade.onceFlag] = true;
+  const exchange = trade.receive ? `${item.name} for ${itemName(world, trade.receive)}` : item.name;
+  witness(state, witnesses(world, state), tradeNote(exchange));
+  noteSpeech(world, state, state.roomId, npcId, trade.say);
   return [line("speech", trade.say)];
 }
 
@@ -753,15 +887,27 @@ function doStory(world: World, state: GameState, npcQuery: string): GameLine[] {
   const script = world.npcs[npcId].script;
   const story = script.story;
   if (!story) return [line("speech", `${script.name} is not your audience.`)];
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    "Null tells me a story.",
+    `Null tells ${script.name} a story.`,
+  );
   if (story.onceFlag && state.flags[story.onceFlag]) {
-    return [line("speech", story.already ?? `${script.name} has heard that one.`)];
+    const heard = story.already ?? `${script.name} has heard that one.`;
+    noteSpeech(world, state, state.roomId, npcId, heard);
+    return [line("speech", heard)];
   }
   if (story.requiresAnyFlags && !story.requiresAnyFlags.some((f) => state.flags[f])) {
+    noteSpeech(world, state, state.roomId, npcId, story.elseSay);
     return [line("speech", story.elseSay)];
   }
   if (story.setFlag) state.flags[story.setFlag] = true;
   if (story.onceFlag) state.flags[story.onceFlag] = true;
   if (story.grantScrip) state.scrip += story.grantScrip;
+  noteSpeech(world, state, state.roomId, npcId, story.say);
+  noteScrip(world, state, npcId, story.grantScrip ?? 0);
   return [line("speech", story.say)];
 }
 
@@ -783,6 +929,14 @@ function doPay(world: World, state: GameState, npcQuery: string): GameLine[] {
   state.scrip -= bribe.cost;
   if (bribe.setFlag) state.flags[bribe.setFlag] = true;
   if (bribe.heal) state.hp = state.maxHp;
+  witnessAs(
+    state,
+    witnesses(world, state),
+    npcId,
+    `Null pays me ${bribe.cost} scrip.`,
+    `Null pays ${script.name} ${bribe.cost} scrip.`,
+  );
+  noteSpeech(world, state, state.roomId, npcId, bribe.say);
   return [line("speech", bribe.say)];
 }
 
@@ -804,6 +958,7 @@ function doBuy(world: World, state: GameState, itemQuery: string): GameLine[] {
   state.scrip -= item.value;
   rt.inventory.splice(rt.inventory.indexOf(item.id), 1);
   addItem(state, item.id);
+  witness(state, witnesses(world, state), tradeNote(`1 ${item.name} for ${item.value} scrip`));
   return [line("good", `Bought ${item.name} for ${item.value} scrip. ${state.scrip} left.`)];
 }
 
@@ -824,6 +979,7 @@ function doSell(world: World, state: GameState, itemQuery: string): GameLine[] {
   removeItem(state, item.id);
   rtTake(state, npcId, item.id);
   state.scrip += item.value;
+  witness(state, witnesses(world, state), tradeNote(`1 ${item.name} for ${item.value} scrip`));
   return [line("good", `Sold ${item.name} for ${item.value} scrip. You now have ${state.scrip}.`)];
 }
 
@@ -832,6 +988,7 @@ function rtTake(state: GameState, npcId: string, itemId: string) {
 }
 
 function doTrade(world: World, state: GameState): GameLine[] {
+  witness(state, witnesses(world, state), "Null looks over the wares.");
   const npcId = merchantIn(world, state);
   if (!npcId) return [line("body", "Nobody here has wares. The room is not a shop, however much it charges you.")];
   const script = world.npcs[npcId].script;
@@ -853,20 +1010,25 @@ function doTrade(world: World, state: GameState): GameLine[] {
 
 function doAttack(world: World, state: GameState, target: string): GameLine[] {
   const npcId = matchNpc(world, state, target);
-  if (!npcId) return [line("warn", "You swing at nothing, which is a kind of practice.")];
+  if (!npcId) {
+    witness(state, witnesses(world, state), "Null swings at nothing.");
+    return [line("warn", "You swing at nothing, which is a kind of practice.")];
+  }
   const script = world.npcs[npcId].script;
   const rt = state.npcs[npcId];
+  const weapon = bestWeapon(world, state);
+  const withWhat = weapon ? weapon.name : "fists";
+  witness(state, witnesses(world, state), `Null strikes ${script.name} with ${withWhat}.`);
   if (script.combat.unkillable) {
+    if (script.combat.refuse) noteSpeech(world, state, state.roomId, npcId, script.combat.refuse);
     return [line("speech", script.combat.refuse ?? "Your blow passes through a recording.")];
   }
   rt.hostile = true;
   state.combatWith = npcId;
-  const weapon = bestWeapon(world, state);
   const dmg = weapon?.damage ?? 1;
-  const withWhat = weapon ? weapon.name : "your fists";
   rt.hp -= dmg;
   const lines: GameLine[] = [
-    line("combat", `You strike ${script.name} with ${withWhat} for ${dmg}. (${Math.max(0, rt.hp)}/${rt.maxHp})`),
+    line("combat", `You strike ${script.name} with ${weapon ? weapon.name : "your fists"} for ${dmg}. (${Math.max(0, rt.hp)}/${rt.maxHp})`),
   ];
   if (rt.hp <= 0) {
     killNpc(world, state, npcId, lines);
@@ -890,15 +1052,17 @@ function doFlee(world: World, state: GameState): GameLine[] {
   const backDir = DIRS.find((d) => room.exits[d] === back && !dirBlocked(room, state, d));
   const dir = backDir ?? DIRS.find((d) => room.exits[d] && !dirBlocked(room, state, d));
   if (!dir || !room.exits[dir]) {
+    witness(state, witnesses(world, state), "Null tries to flee.");
     lines.push(line("warn", "Nowhere to run. The room is a fist."));
     return lines;
   }
   lines.push(line("good", `You break ${dir}.`));
-  lines.push(...move(world, state, dir));
+  lines.push(...move(world, state, dir, "flees"));
   return lines;
 }
 
 function doWait(world: World, state: GameState): GameLine[] {
+  witness(state, witnesses(world, state), "Null waits.");
   const foe = state.combatWith;
   if (foe && state.npcs[foe]?.alive && state.npcs[foe].hostile) {
     const lines: GameLine[] = [line("body", "You hesitate.")];
@@ -958,7 +1122,12 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
   }
 
   const state: GameState = structuredClone(prev);
+  repairLogs(state);
   state.turns += 1;
+  const roomId = state.roomId;
+  const wasBlocked = blockedDirs(world, state, roomId);
+  const said = spokenFrom(input);
+  if (said) witness(state, witnesses(world, state), `Null says ${quote(said)}`);
   let lines: GameLine[];
   switch (parsed.type) {
     case "unknown":
@@ -968,6 +1137,7 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
       lines = move(world, state, parsed.dir);
       break;
     case "look":
+      witness(state, witnesses(world, state), "Null looks around.");
       lines = describeRoom(world, state);
       break;
     case "examine":
@@ -1021,6 +1191,7 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
     default:
       lines = [line("warn", "The parser shrugged.")];
   }
+  noteOpenedDoors(world, state, roomId, wasBlocked);
   return { state, lines, effect: "none" };
 }
 
@@ -1036,6 +1207,13 @@ export function speechUtterance(input: string): string | null {
   if (parsed.type === "say") return parsed.text;
   if (parsed.type === "unknown" && /\s/.test(parsed.raw)) return parsed.raw;
   return null;
+}
+
+export function spokenFrom(input: string): string | null {
+  if (!speechUtterance(input)) return null;
+  const squashed = input.trim().replace(/\s+/g, " ");
+  const match = /^(?:say|answer|shout)\s+(.+)$/i.exec(squashed);
+  return (match ? match[1] : squashed).trim();
 }
 
 export function isUnheardLine(entry: GameLine): boolean {

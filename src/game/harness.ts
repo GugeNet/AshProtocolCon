@@ -6,6 +6,19 @@ import {
   itemsInRoom,
   speechUtterance,
 } from "./engine.ts";
+import {
+  blockedDirs,
+  englishList,
+  memoryFileSection,
+  memoryPrompt,
+  noteOpenedDoors,
+  noteSpeech,
+  repairLogs,
+  witness,
+  witnessAs,
+  witnesses,
+} from "./observe.ts";
+import { memoryUrl } from "./journal.ts";
 import type { CommandResult, GameLine, GameState, ItemDef, NpcScript, World } from "./types.ts";
 
 export const OLLAMA_MODEL = "qwen3:4b";
@@ -161,6 +174,12 @@ function objectiveBrief(role: NpcRole, state: GameState, utterance: string): str
     .join("\n");
 }
 
+export function loadMemory(name: string): Promise<string> {
+  return fetch(memoryUrl(name), { cache: "no-store" })
+    .then(async (res) => (res.ok ? res.text() : ""))
+    .catch(() => "");
+}
+
 function systemPrompt(
   role: NpcRole,
   script: NpcScript,
@@ -169,6 +188,7 @@ function systemPrompt(
   state: GameState,
   utterance: string,
   prior: string[],
+  memory: string,
 ): string {
   const runtime = state.npcs[script.id];
   const parts = [
@@ -184,6 +204,10 @@ function systemPrompt(
     "",
     `ROOM: ${roomName}.`,
     presenceOf(script, state),
+    "",
+    memoryFileSection(memory),
+    "",
+    memoryPrompt(runtime?.log),
     "",
     "OBJECTIVES",
     objectiveBrief(role, state, utterance),
@@ -235,6 +259,7 @@ async function askSubagent(
   state: GameState,
   utterance: string,
   prior: string[],
+  memory: string,
   signal: AbortSignal,
 ): Promise<AgentReply> {
   const npc = world.npcs[role.id];
@@ -254,7 +279,7 @@ async function askSubagent(
       messages: [
         {
           role: "system",
-          content: systemPrompt(role, script, room.name, npc.state.mood, state, utterance, prior),
+          content: systemPrompt(role, script, room.name, npc.state.mood, state, utterance, prior, memory),
         },
         { role: "user", content: `Null says: ${utterance}` },
       ],
@@ -277,6 +302,8 @@ export async function hearRoom(
   signal?: AbortSignal,
 ): Promise<HearResult> {
   const room = world.rooms[state.roomId];
+  const roomId = state.roomId;
+  const wasBlocked = blockedDirs(world, state, roomId);
   const present = room.npcs.filter((id) => state.npcs[id]?.alive);
   if (!present.length) {
     return {
@@ -285,14 +312,28 @@ export async function hearRoom(
     };
   }
 
-  const loaded = await Promise.all(present.map(async (id) => ({ id, role: await loadRole(id) })));
+  const loaded = await Promise.all(
+    present.map(async (id) => {
+      const script = world.npcs[id].script;
+      const [role, memory] = await Promise.all([loadRole(id), loadMemory(script.name)]);
+      return { id, role, memory };
+    }),
+  );
   const replies = await Promise.all(
     loaded.map(async (agent) => {
       if (!agent.role) {
         return { id: agent.id, role: null, say: "", met: [] as string[], error: "no role" };
       }
       try {
-        const reply = await askSubagent(agent.role, world, state, utterance, prior, signal ?? new AbortController().signal);
+        const reply = await askSubagent(
+          agent.role,
+          world,
+          state,
+          utterance,
+          prior,
+          agent.memory,
+          signal ?? new AbortController().signal,
+        );
         return { id: agent.id, role: agent.role, ...reply, error: "" };
       } catch (error) {
         if (signal?.aborted) throw error;
@@ -307,7 +348,10 @@ export async function hearRoom(
   let failures = 0;
   for (const reply of replies) {
     const script = world.npcs[reply.id].script;
-    if (reply.say) lines.push(line("speech", `${script.name}: ${reply.say}`));
+    if (reply.say) {
+      lines.push(line("speech", `${script.name}: ${reply.say}`));
+      noteSpeech(world, next, next.roomId, reply.id, reply.say);
+    }
     if (reply.role && reply.met.length && !state.npcs[reply.id]?.hostile) {
       const applied = acceptMarks(next, reply.role, utterance, reply.met);
       next = applied.state;
@@ -315,8 +359,20 @@ export async function hearRoom(
         lines.push(
           line("sys", `${script.name} meets an objective: ${objective.flag.replaceAll("_", " ")}.`),
         );
+        if (objective.consumeItems?.length) {
+          const handed = englishList(objective.consumeItems.map((id) => itemName(world, id)));
+          witness(next, witnesses(world, next), `Null hands over ${handed}.`);
+        }
         if (objective.grantItems?.length) {
           const names = objective.grantItems.map((id) => itemName(world, id));
+          const goods = englishList(names);
+          witnessAs(
+            next,
+            witnesses(world, next),
+            reply.id,
+            `I give Null ${goods}.`,
+            `${script.name} gives Null ${goods}.`,
+          );
           lines.push(line("good", `You receive ${names.join(", ")}.`));
         }
       }
@@ -332,6 +388,7 @@ export async function hearRoom(
   if (!lines.length) {
     lines.push(line("body", "The room lets the words settle."));
   }
+  noteOpenedDoors(world, next, roomId, wasBlocked);
   return { state: next, lines };
 }
 
@@ -393,6 +450,9 @@ export function comeIntoPossession(
   state: GameState,
   itemId: string,
 ): { ok: boolean; state: GameState; lines: GameLine[] } {
+  repairLogs(state);
+  const roomId = state.roomId;
+  const wasBlocked = blockedDirs(world, state, roomId);
   const item = itemsInRoom(world, state).find((entry) => entry.id === itemId);
   if (!item) {
     const name = world.items[itemId]?.name ?? itemId;
@@ -406,6 +466,8 @@ export function comeIntoPossession(
   const index = pile?.indexOf(item.id) ?? -1;
   if (pile && index >= 0) pile.splice(index, 1);
   state.inventory.push(item.id);
+  witness(state, witnesses(world, state), `Null takes ${item.name}.`);
+  noteOpenedDoors(world, state, roomId, wasBlocked);
   return { ok: true, state, lines: [line("good", `Taken: ${item.name}.`)] };
 }
 

@@ -169,6 +169,7 @@ export type NpcRuntime = {
   maxHp: number;
   hostile: boolean;
   inventory: string[];
+  log: string[];
 };
 
 export type GameMode = "play" | "dead" | "won";
