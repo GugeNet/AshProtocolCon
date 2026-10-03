@@ -1,0 +1,11 @@
+{
+  "id": "madam-wick",
+  "alive": true,
+  "hp": 8,
+  "maxHp": 8,
+  "hostile": false,
+  "mood": "sidelong",
+  "inventory": [
+    "crystal-ball"
+  ]
+}

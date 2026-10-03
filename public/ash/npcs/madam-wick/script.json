@@ -1,0 +1,30 @@
+{
+  "id": "madam-wick",
+  "name": "Madam Wick",
+  "aliases": [
+    "madam",
+    "wick",
+    "madam wick",
+    "witch"
+  ],
+  "presence": "Madam Wick sits too straight for the chair, a crystal ball in both hands, arguing with it under her breath.",
+  "greeting": "\"Receipt. You came in on a Tuesday, which is not a day, it is a direction. Sit, or don't. The glass is already bored of you.\"",
+  "topics": {
+    "glass": {
+      "say": "\"It is not a toy and it is not a god. It is a throat with no body. Ask me for a fortune if you want it to use that throat.\""
+    },
+    "market": {
+      "say": "\"East. They sell things that stay sold. I sell the moment before you did the thing. Mare invoices. I eavesdrop on yesterday.\""
+    },
+    "spire": {
+      "say": "\"Tall rooms make short memories. I don't do tall. I do the booth. If the city wants a lung, it can inhale without my glass.\""
+    }
+  },
+  "trades": [],
+  "say": [],
+  "combat": {
+    "damage": 1,
+    "scrip": 3,
+    "onDeathSay": "Madam Wick folds over the cloth. The ball rolls, offended, and comes to rest like it meant to."
+  }
+}

@@ -1,10 +1,11 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import type { Plugin, PreviewServer, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
-import { logFileName, mergeJournal, personFileName } from "./src/game/journal.ts";
+import { logFileName, mergeJournal, personFileName, PLAYER_ID } from "./src/game/journal.ts";
 
 const ollamaProxy = {
   "/ollama": {
@@ -201,7 +202,8 @@ function writeJournals(body: Uint8Array): void {
     const person = asRecord(entry);
     const id = typeof person?.id === "string" ? person.id : "";
     const name = typeof person?.name === "string" ? person.name : "";
-    if (!/^[a-z0-9-]+$/.test(id) || !existsSync(join(npcRoot, id))) continue;
+    if (!/^[a-z0-9-]+$/.test(id)) continue;
+    if (id !== PLAYER_ID && !existsSync(join(npcRoot, id))) continue;
     if (!name || personFileName(name) === "unnamed") continue;
     const lines = Array.isArray(person?.log)
       ? person.log.filter((item): item is string => typeof item === "string")
@@ -270,6 +272,60 @@ function npcJournal(): Plugin {
   };
 }
 
+function hypnosRead(): Plugin {
+  const attach = (server: ViteDevServer | PreviewServer) => {
+    server.middlewares.use((req, res, next) => {
+      const incoming = req as HttpReq;
+      const outgoing = res as HttpRes;
+      const url = incoming.url ?? "";
+      if ((url.split("?")[0] ?? "") !== "/hypnos/read") {
+        next();
+        return;
+      }
+      if (incoming.method !== "GET") {
+        outgoing.statusCode = 405;
+        outgoing.end("");
+        return;
+      }
+      const npc = new URL(url, "http://localhost").searchParams.get("npc") ?? "";
+      if (!/^[a-z0-9-]+$/.test(npc)) {
+        outgoing.statusCode = 400;
+        outgoing.end("Unknown person.");
+        return;
+      }
+      const result = spawnSync("python", ["hypnos.py", "--read-only", "--npc", npc], {
+        cwd: resolve("."),
+        encoding: "utf8",
+        timeout: 15000,
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      });
+      if (result.error || result.status !== 0) {
+        const message = (
+          result.stderr ||
+          result.stdout ||
+          result.error?.message ||
+          "Hypnos did not answer."
+        ).trim();
+        console.log(`[hypnos] read ${npc} failed\n${message}`);
+        outgoing.statusCode = 502;
+        outgoing.end(message);
+        return;
+      }
+      console.log(`[hypnos] read ${npc}`);
+      outgoing.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      outgoing.end(result.stdout);
+    });
+  };
+  return {
+    name: "hypnos-read",
+    configureServer: attach,
+    configurePreviewServer: attach,
+  };
+}
+
 function ollamaConsole(): Plugin {
   return {
     name: "ollama-console",
@@ -297,7 +353,7 @@ function ollamaConsole(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), npcJournal(), ollamaConsole()],
+  plugins: [react(), tailwindcss(), npcJournal(), hypnosRead(), ollamaConsole()],
   server: { proxy: ollamaProxy },
   preview: { proxy: ollamaProxy },
 });

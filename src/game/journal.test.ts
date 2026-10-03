@@ -82,5 +82,10 @@ test("the journal lists every person and the log they hold", () => {
       name: "Sister Static",
       log: ["Null comes into the Chapel.", 'Null says "hello"'],
     },
+    {
+      id: "null",
+      name: "Null",
+      log: ["I come into the Chapel."],
+    },
   ]);
 });

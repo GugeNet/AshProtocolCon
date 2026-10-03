@@ -144,6 +144,7 @@ export function initialState(world: World): GameState {
     npcs,
     roomItems,
     combatWith: null,
+    playerLog: [],
   };
   noteArrival(world, state, world.start);
   return state;

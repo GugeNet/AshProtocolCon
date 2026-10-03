@@ -2,11 +2,66 @@ import type { Dir, GameState, Obstacle, World } from "./types.ts";
 
 const PLAYER = "Null";
 
-export function repairLogs(state: GameState): GameState {
+function placedItems(state: GameState): Set<string> {
+  const ids = new Set<string>();
+  for (const id of state.inventory ?? []) ids.add(id);
+  for (const pile of Object.values(state.roomItems ?? {})) {
+    if (!Array.isArray(pile)) continue;
+    for (const id of pile) ids.add(id);
+  }
+  for (const npc of Object.values(state.npcs)) {
+    if (!Array.isArray(npc.inventory)) continue;
+    for (const id of npc.inventory) ids.add(id);
+  }
+  return ids;
+}
+
+function claim(held: Set<string>, itemId: string): boolean {
+  if (held.has(itemId)) return false;
+  held.add(itemId);
+  return true;
+}
+
+export function repairLogs(state: GameState, world?: World): GameState {
   for (const npc of Object.values(state.npcs)) {
     if (!Array.isArray(npc.log)) npc.log = [];
   }
+  if (!Array.isArray(state.playerLog)) state.playerLog = [];
+  if (!world) return state;
+  if (!state.roomItems) state.roomItems = {};
+
+  const held = placedItems(state);
+  for (const [id, npc] of Object.entries(world.npcs)) {
+    if (state.npcs[id]) continue;
+    const inventory = npc.state.inventory.filter((itemId) => claim(held, itemId));
+    const runtime = {
+      alive: npc.state.alive,
+      hp: npc.state.hp,
+      maxHp: npc.state.maxHp,
+      hostile: npc.state.hostile,
+      inventory,
+      log: [] as string[],
+    };
+    state.npcs[id] = runtime;
+    const here = Object.values(world.rooms).find((room) => room.npcs.includes(id));
+    if (here && here.id === state.roomId && runtime.alive) {
+      runtime.log.push(`${PLAYER} comes into the ${here.name}.`);
+    }
+  }
+  for (const room of Object.values(world.rooms)) {
+    if (Array.isArray(state.roomItems[room.id])) continue;
+    state.roomItems[room.id] = room.ground
+      .map((ground) => ground.id)
+      .filter((itemId) => claim(held, itemId));
+  }
   return state;
+}
+
+export function remember(state: GameState, text: string): void {
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (!flat) return;
+  if (!Array.isArray(state.playerLog)) state.playerLog = [];
+  state.playerLog.push(flat);
 }
 
 export function witnesses(world: World, state: GameState, roomId = state.roomId): string[] {
@@ -91,7 +146,10 @@ export function noteOpenedDoors(world: World, state: GameState, roomId: string, 
   const now = new Set(blockedDirs(world, state, roomId));
   const ids = witnesses(world, state, roomId);
   for (const dir of was) {
-    if (!now.has(dir)) witness(state, ids, `Door to ${dir} opens.`);
+    if (!now.has(dir)) {
+      witness(state, ids, `Door to ${dir} opens.`);
+      remember(state, `Door to ${dir} opens.`);
+    }
   }
 }
 
@@ -99,6 +157,7 @@ export function noteArrival(world: World, state: GameState, roomId: string): voi
   const room = world.rooms[roomId];
   if (!room) return;
   witness(state, witnesses(world, state, roomId), `${PLAYER} comes into the ${room.name}.`);
+  remember(state, `I come into the ${room.name}.`);
 }
 
 export function noteSpeech(
@@ -120,4 +179,5 @@ export function noteSpeech(
     `I reply ${said}`,
     `${name} replies ${said}`,
   );
+  remember(state, `${name} replies ${said}`);
 }

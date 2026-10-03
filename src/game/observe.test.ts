@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { applyCommand, spokenFrom } from "./engine.ts";
+import { applyCommand, describeRoom, spokenFrom } from "./engine.ts";
 import { playInput } from "./harness.ts";
 import { memoryPrompt, repairLogs } from "./observe.ts";
 import type { GameState, ItemDef, NpcScript, NpcState, RoomDef } from "./types.ts";
@@ -256,9 +256,42 @@ function loadCartridge() {
   const states = index.npcs.map((id) =>
     JSON.parse(readFileSync(join(root, "npcs", id, "state.json"), "utf8")) as NpcState,
   );
-  assert.equal(readdirSync(join(root, "rooms")).filter((name) => name.endsWith(".json")).length, 20);
+  assert.equal(readdirSync(join(root, "rooms")).filter((name) => name.endsWith(".json")).length, 21);
   return createWorld(rooms, scripts, states, items, index.start);
 }
+
+test("a tape from before Madam Wick still finds her in the booth", () => {
+  const world = loadCartridge();
+  const standing = initialState(world);
+  delete standing.npcs["madam-wick"];
+  delete standing.roomItems["glass-booth"];
+  standing.roomId = "glass-booth";
+  const looked = applyCommand(world, standing, "look");
+  const shown = looked.lines.map((entry) => entry.text).join("\n");
+  assert.match(shown, /Madam Wick sits too straight/);
+  assert.deepEqual(looked.state.npcs["madam-wick"].inventory, ["crystal-ball"]);
+  assert.deepEqual(looked.state.npcs["madam-wick"].log, [
+    "Null comes into the Glass Booth.",
+    "Null looks around.",
+  ]);
+  assert.deepEqual(looked.state.roomItems["glass-booth"], []);
+
+  const market = initialState(world);
+  delete market.npcs["madam-wick"];
+  const walked = applyCommand(world, market, "n");
+  const west = applyCommand(world, walked.state, "w");
+  assert.match(west.lines.map((entry) => entry.text).join("\n"), /Madam Wick/);
+  assert.deepEqual(west.state.npcs["madam-wick"].log, ["Null comes into the Glass Booth."]);
+
+  const carrying = initialState(world);
+  delete carrying.npcs["madam-wick"];
+  carrying.inventory.push("crystal-ball");
+  carrying.roomId = "lantern-market";
+  const repaired = repairLogs(carrying, world);
+  assert.deepEqual(repaired.npcs["madam-wick"].inventory, []);
+  assert.deepEqual(repaired.npcs["madam-wick"].log, []);
+  assert.match(describeRoom(world, { ...repaired, roomId: "glass-booth" }).map((entry) => entry.text).join("\n"), /Madam Wick/);
+});
 
 test("coil sees the dock, and mare sees Null arrive at the market", async () => {
   const world = loadCartridge();
@@ -274,4 +307,10 @@ test("coil sees the dock, and mare sees Null arrive at the market", async () => 
   ]);
   assert.deepEqual(state.npcs["mare-voss"].log, ["Null comes into the Lantern Market."]);
   assert.deepEqual(state.npcs["sister-static"].log, []);
+  assert.deepEqual(state.playerLog, [
+    "I come into the Silt Dock.",
+    "I take the frayed cable.",
+    "I go north.",
+    "I come into the Lantern Market.",
+  ]);
 });

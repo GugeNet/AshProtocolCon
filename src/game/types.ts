@@ -1,6 +1,6 @@
 export type Dir = "north" | "south" | "east" | "west";
 
-export type ItemKind = "junk" | "weapon" | "gear" | "key" | "heal";
+export type ItemKind = "junk" | "weapon" | "gear" | "key" | "heal" | "oracle";
 
 export type ItemDef = {
   id: string;
@@ -190,6 +190,12 @@ export type GameState = {
   npcs: Record<string, NpcRuntime>;
   roomItems: Record<string, string[]>;
   combatWith: string | null;
+  playerLog: string[];
+};
+
+export type Consult = {
+  activator: string;
+  itemId: string;
 };
 
 export type World = {
@@ -222,4 +228,5 @@ export type CommandResult = {
   state: GameState;
   lines: GameLine[];
   effect: Effect;
+  consult?: Consult;
 };

@@ -1,0 +1,20 @@
+{
+  "id": "glass-booth",
+  "name": "Glass Booth",
+  "code": "GLS",
+  "x": -1,
+  "y": 3,
+  "exits": {
+    "east": "lantern-market"
+  },
+  "descriptions": [
+    {
+      "text": "A stall the market pretends is not attached to it. Cracked mirrors, a cloth the color of a bruise, and one chair that has never agreed with the floor. The air smells like matches and orange peel. East is the honest noise of buying."
+    }
+  ],
+  "ground": [],
+  "npcs": [
+    "madam-wick"
+  ],
+  "obstacles": []
+}

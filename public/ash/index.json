@@ -3,6 +3,7 @@
   "rooms": [
     "silt-dock",
     "lantern-market",
+    "glass-booth",
     "chapel-static",
     "flooded-underpass",
     "scrap-yard",
@@ -25,6 +26,7 @@
   "npcs": [
     "old-coil",
     "mare-voss",
+    "madam-wick",
     "sister-static",
     "drone-mite",
     "doc-hex",

@@ -30,6 +30,9 @@ export function memoryUrl(name: string): string {
 
 export const HYPNOS_MARKER = "--- hypnos ---";
 
+export const PLAYER_ID = "null";
+export const PLAYER_NAME = "Null";
+
 export function mergeJournal(existing: string, lines: string[]): string {
   const events = lines.map((line) => line.replace(/\r/g, "")).filter((line) => line !== "");
   if (!events.length) return "";
@@ -48,11 +51,17 @@ export function mergeJournal(existing: string, lines: string[]): string {
 }
 
 export function journalPeople(world: World, state: GameState): JournalPerson[] {
-  return Object.entries(world.npcs).map(([id, npc]) => ({
+  const people = Object.entries(world.npcs).map(([id, npc]) => ({
     id,
     name: npc.script.name,
     log: state.npcs[id]?.log ?? [],
   }));
+  people.push({
+    id: PLAYER_ID,
+    name: PLAYER_NAME,
+    log: state.playerLog ?? [],
+  });
+  return people;
 }
 
 export async function publishJournals(world: World, state: GameState): Promise<void> {

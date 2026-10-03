@@ -5,14 +5,17 @@ import {
   noteOpenedDoors,
   noteSpeech,
   quote,
+  remember,
   repairLogs,
   tradeNote,
   witness,
   witnessAs,
   witnesses,
 } from "./observe.ts";
+import { PLAYER_ID } from "./journal.ts";
 import type {
   CommandResult,
+  Consult,
   Dir,
   GameLine,
   GameState,
@@ -100,6 +103,14 @@ function parse(raw: string): Parsed {
   if ((m = /^(?:drop|leave)\s+(.+)$/.exec(lower))) return { type: "drop", target: m[1] };
   if (
     (m =
+      /^(?:ask|talk|speak)(?:\s+to|\s+with)?\s+(.+?)\s+for\s+(?:(?:a|the|my|your)\s+)?fortune$/.exec(
+        lower,
+      ))
+  ) {
+    return { type: "talk", target: m[1], topic: "fortune" };
+  }
+  if (
+    (m =
       /^(?:talk|speak|ask)(?:\s+to|\s+with)?\s+(.+?)(?:\s+about\s+(.+))?$/.exec(lower))
   ) {
     return { type: "talk", target: m[1], topic: m[2] };
@@ -159,6 +170,7 @@ function noteTalk(world: World, state: GameState, npcId: string, topic?: string)
     `Null talks to me${about}.`,
     `Null talks to ${name}${about}.`,
   );
+  remember(state, `I talk to ${name}${about}.`);
 }
 
 function noteGift(world: World, state: GameState, npcId: string, ids: string[]): void {
@@ -195,6 +207,7 @@ function noteOffer(world: World, state: GameState, npcId: string, item: string):
     `Null offers ${item} to me.`,
     `Null offers ${item} to ${name}.`,
   );
+  remember(state, `I offer ${item} to ${name}.`);
 }
 
 function hasItem(state: GameState, id: string): boolean {
@@ -258,6 +271,18 @@ export function itemsInRoom(world: World, state: GameState): ItemDef[] {
 
 export function isCartridgeMeta(input: string): boolean {
   return parse(input).type === "meta";
+}
+
+export function commandWaitsOnOracle(world: World, state: GameState, input: string): boolean {
+  const parsed = parse(input);
+  if (parsed.type === "use") {
+    return matchItem(world, parsed.item, state.inventory)?.kind === "oracle";
+  }
+  if (parsed.type === "talk" && parsed.topic && isFortune(parsed.topic)) {
+    const npcId = matchNpc(world, state, parsed.target);
+    return Boolean(npcId && heldOracle(world, state, npcId));
+  }
+  return false;
 }
 
 function npcScore(script: NpcScript, query: string): number {
@@ -370,6 +395,7 @@ function helpLines(): GameLine[] {
         "  take [the] <item>    drop <item>",
         "  talk <name>",
         "  talk <name> about <topic>",
+        "  ask <name> for a fortune",
         "  give <item> to <name>",
         "  tell <name> a story",
         "  say <words>",
@@ -426,7 +452,7 @@ function statusLines(world: World, state: GameState): GameLine[] {
         `WEAPON ${weaponText}`,
         `ROOM ${room.name}`,
         `TURN ${state.turns}`,
-        `SEEN ${state.visited.length}/20`,
+        `SEEN ${state.visited.length}/${Object.keys(world.rooms).length}`,
       ].join("\n"),
     ),
   ];
@@ -509,7 +535,7 @@ function merchantIn(world: World, state: GameState): string | null {
 
 function canSell(item: ItemDef, state: GameState, buys: ItemDef["kind"][]): boolean {
   if (item.sellRequiresFlag && !state.flags[item.sellRequiresFlag]) return false;
-  if (item.kind === "key") return false;
+  if (item.kind === "key" || item.kind === "oracle") return false;
   return buys.includes(item.kind);
 }
 
@@ -518,6 +544,7 @@ function hurt(world: World, state: GameState, amount: number, lines: GameLine[],
   lines.push(line("combat", `${source} (-${amount} HP, ${state.hp} left).`));
   if (state.hp <= 0) {
     witness(state, witnesses(world, state), "Null falls.");
+    remember(state, "I fall.");
     state.mode = "dead";
     state.combatWith = null;
     lines.push(
@@ -571,6 +598,7 @@ function retaliate(world: World, state: GameState, npcId: string, lines: GameLin
     "I hit Null.",
     `${script.name} hits Null.`,
   );
+  remember(state, `${script.name} hits me.`);
   return hurt(world, state, script.combat.damage, lines, `${script.name} hits you`);
 }
 
@@ -583,11 +611,11 @@ function endRank(state: GameState): string {
   return "BLOODY RECEIPT";
 }
 
-function winLines(state: GameState): GameLine[] {
+function winLines(world: World, state: GameState): GameLine[] {
   return [
     line(
       "good",
-      `TURNS ${state.turns}    ROOMS ${state.visited.length}/20    HP ${state.hp}    SCRIP ${state.scrip}`,
+      `TURNS ${state.turns}    ROOMS ${state.visited.length}/${Object.keys(world.rooms).length}    HP ${state.hp}    SCRIP ${state.scrip}`,
     ),
     line("good", `RANK: ${endRank(state)}`),
     line("sys", "The cartridge hums. /save if you want the tape. /exit cuts the power."),
@@ -600,12 +628,14 @@ function move(world: World, state: GameState, dir: Dir, how: "goes" | "flees" = 
   const destId = room.exits[dir];
   if (!destId) {
     witness(state, witnesses(world, state, origin), `Null tries to go ${dir}.`);
+    remember(state, `I try to go ${dir}.`);
     return [line("warn", `No passage ${dir}. Sintered glass, posters, and the idea of a wall.`)];
   }
   const obstacles = room.obstacles.filter((o) => o.dir === dir);
   for (const obstacle of obstacles) {
     if (!obstacleOpen(state, obstacle)) {
       witness(state, witnesses(world, state, origin), `Null tries to go ${dir}.`);
+      remember(state, `I try to go ${dir}.`);
       return [line("warn", obstacle.fail)];
     }
   }
@@ -621,6 +651,7 @@ function move(world: World, state: GameState, dir: Dir, how: "goes" | "flees" = 
     state.combatWith = null;
   }
   witness(state, witnesses(world, state, origin), `Null ${how} ${dir}.`);
+  remember(state, how === "flees" ? `I flee ${dir}.` : `I go ${dir}.`);
   state.previousRoomId = state.roomId;
   state.roomId = destId;
   if (!state.visited.includes(destId)) state.visited.push(destId);
@@ -629,7 +660,7 @@ function move(world: World, state: GameState, dir: Dir, how: "goes" | "flees" = 
   const dest = world.rooms[destId];
   if (dest.win) {
     state.mode = "won";
-    lines.push(...winLines(state));
+    lines.push(...winLines(world, state));
   }
   return lines;
 }
@@ -638,6 +669,7 @@ function doSearch(world: World, state: GameState): GameLine[] {
   const room = world.rooms[state.roomId];
   const watching = witnesses(world, state);
   witness(state, watching, "Null searches.");
+  remember(state, "I search.");
   const action = room.onSearch;
   if (!action) {
     const stuff = visibleGround(world, state, room);
@@ -663,7 +695,10 @@ function doSearch(world: World, state: GameState): GameLine[] {
     ...(action.grantItems?.length ? [named(world, action.grantItems)] : []),
     ...(action.grantScrip ? [`${action.grantScrip} scrip`] : []),
   ];
-  if (found.length) witness(state, watching, `Null finds ${englishList(found)}.`);
+  if (found.length) {
+    witness(state, watching, `Null finds ${englishList(found)}.`);
+    remember(state, `I find ${englishList(found)}.`);
+  }
   return [line("good", action.say)];
 }
 
@@ -671,6 +706,7 @@ function doListen(world: World, state: GameState): GameLine[] {
   const room = world.rooms[state.roomId];
   const watching = witnesses(world, state);
   witness(state, watching, "Null listens.");
+  remember(state, "I listen.");
   const action = room.onListen;
   if (!action) return [line("body", "You listen. The city chews itself, somewhere else.")];
   if (!action.counter) {
@@ -678,6 +714,7 @@ function doListen(world: World, state: GameState): GameLine[] {
     if (!step) return [line("body", "Silence, which is a kind of answer.")];
     if (step.setFlag) state.flags[step.setFlag] = true;
     witness(state, watching, `The room says ${quote(step.say)}`);
+    remember(state, `The room says ${quote(step.say)}`);
     return [line("speech", step.say)];
   }
   const n = (state.counters[action.counter] ?? 0) + 1;
@@ -689,6 +726,7 @@ function doListen(world: World, state: GameState): GameLine[] {
   if (!step) return [line("body", "Only wind, and the wind is out of new words.")];
   if (step.setFlag) state.flags[step.setFlag] = true;
   witness(state, watching, `The room says ${quote(step.say)}`);
+  remember(state, `The room says ${quote(step.say)}`);
   return [line("speech", step.say)];
 }
 
@@ -698,6 +736,7 @@ function doDrop(world: World, state: GameState, target: string): GameLine[] {
   removeItem(state, item.id);
   state.roomItems[state.roomId].push(item.id);
   witness(state, witnesses(world, state), `Null drops ${item.name}.`);
+  remember(state, `I drop the ${item.name}.`);
   return [line("body", `Dropped: ${item.name}.`)];
 }
 
@@ -706,6 +745,7 @@ function doExamine(world: World, state: GameState, target: string): GameLine[] {
   const watching = witnesses(world, state);
   if (/^(me|self|myself|null)$/.test(q)) {
     witness(state, watching, "Null looks at himself.");
+    remember(state, "I look at myself.");
     return [
       line(
         "body",
@@ -725,6 +765,7 @@ function doExamine(world: World, state: GameState, target: string): GameLine[] {
       "Null looks at me.",
       `Null looks at ${script.name}.`,
     );
+    remember(state, `I look at ${script.name}.`);
     return [
       line(
         "speech",
@@ -735,6 +776,7 @@ function doExamine(world: World, state: GameState, target: string): GameLine[] {
   const item = matchItem(world, target, [...state.inventory, ...visibleGround(world, state, room)]);
   if (!item) return [line("warn", `You see no ${target} worth a longer look.`)];
   witness(state, watching, `Null looks at ${item.name}.`);
+  remember(state, `I look at the ${item.name}.`);
   return [line("body", item.text)];
 }
 
@@ -747,9 +789,14 @@ function doUse(world: World, state: GameState, target: string): GameLine[] {
     const before = state.hp;
     state.hp = Math.min(state.maxHp, state.hp + (item.heal ?? 0));
     witness(state, witnesses(world, state), `Null uses ${item.name}.`);
+    remember(state, `I use the ${item.name}.`);
     return [line("good", `You take the ${item.name}. HP ${before} → ${state.hp}.`)];
   }
   witness(state, witnesses(world, state), `Null uses ${item.name}.`);
+  remember(state, `I use the ${item.name}.`);
+  if (item.kind === "oracle") {
+    return [line("body", `You cup the ${item.name}. The glass goes cold.`)];
+  }
   if (item.useText) return [line("body", item.useText)];
   return [line("body", `You fuss with the ${item.name}. The room declines to change.`)];
 }
@@ -854,6 +901,19 @@ function doGive(world: World, state: GameState, itemQuery: string, npcQuery: str
   if (!npcId) return [line("warn", "No one here to take it.")];
   const script = world.npcs[npcId].script;
   const trade = script.trades.find((t) => t.give === item.id);
+  if (!trade && item.kind === "oracle") {
+    removeItem(state, item.id);
+    state.npcs[npcId].inventory.push(item.id);
+    witnessAs(
+      state,
+      witnesses(world, state),
+      npcId,
+      `Null gives me the ${item.name}.`,
+      `Null gives ${script.name} the ${item.name}.`,
+    );
+    remember(state, `I give ${script.name} the ${item.name}.`);
+    return [line("good", `${script.name} takes the ${item.name}.`)];
+  }
   if (!trade) {
     noteOffer(world, state, npcId, item.name);
     return [line("speech", `${script.name} looks at the ${item.name} and does not want it.`)];
@@ -989,6 +1049,7 @@ function rtTake(state: GameState, npcId: string, itemId: string) {
 
 function doTrade(world: World, state: GameState): GameLine[] {
   witness(state, witnesses(world, state), "Null looks over the wares.");
+  remember(state, "I look over the wares.");
   const npcId = merchantIn(world, state);
   if (!npcId) return [line("body", "Nobody here has wares. The room is not a shop, however much it charges you.")];
   const script = world.npcs[npcId].script;
@@ -1012,6 +1073,7 @@ function doAttack(world: World, state: GameState, target: string): GameLine[] {
   const npcId = matchNpc(world, state, target);
   if (!npcId) {
     witness(state, witnesses(world, state), "Null swings at nothing.");
+    remember(state, "I swing at nothing.");
     return [line("warn", "You swing at nothing, which is a kind of practice.")];
   }
   const script = world.npcs[npcId].script;
@@ -1019,6 +1081,10 @@ function doAttack(world: World, state: GameState, target: string): GameLine[] {
   const weapon = bestWeapon(world, state);
   const withWhat = weapon ? weapon.name : "fists";
   witness(state, witnesses(world, state), `Null strikes ${script.name} with ${withWhat}.`);
+  remember(
+    state,
+    weapon ? `I strike ${script.name} with the ${withWhat}.` : `I strike ${script.name} with fists.`,
+  );
   if (script.combat.unkillable) {
     if (script.combat.refuse) noteSpeech(world, state, state.roomId, npcId, script.combat.refuse);
     return [line("speech", script.combat.refuse ?? "Your blow passes through a recording.")];
@@ -1053,6 +1119,7 @@ function doFlee(world: World, state: GameState): GameLine[] {
   const dir = backDir ?? DIRS.find((d) => room.exits[d] && !dirBlocked(room, state, d));
   if (!dir || !room.exits[dir]) {
     witness(state, witnesses(world, state), "Null tries to flee.");
+    remember(state, "I try to flee.");
     lines.push(line("warn", "Nowhere to run. The room is a fist."));
     return lines;
   }
@@ -1061,8 +1128,38 @@ function doFlee(world: World, state: GameState): GameLine[] {
   return lines;
 }
 
+function isFortune(topic: string): boolean {
+  return /^(?:(?:a|the|my|your)\s+)?fortune$/.test(topic.trim().toLowerCase());
+}
+
+function heldOracle(world: World, state: GameState, npcId: string): string | null {
+  const pack = state.npcs[npcId]?.inventory ?? [];
+  return pack.find((id) => world.items[id]?.kind === "oracle") ?? null;
+}
+
+function beginFortune(
+  world: World,
+  state: GameState,
+  npcId: string,
+): { lines: GameLine[]; consult?: Consult } {
+  const script = world.npcs[npcId].script;
+  noteTalk(world, state, npcId, "fortune");
+  const itemId = heldOracle(world, state, npcId);
+  if (!itemId) {
+    const say = "\"The glass is not in my hands. I do not read palms. Palms lie, and they charge extra.\"";
+    noteSpeech(world, state, state.roomId, npcId, say);
+    return { lines: [line("speech", say)] };
+  }
+  const name = world.items[itemId]?.name ?? "crystal ball";
+  return {
+    lines: [line("body", `${script.name} sets both hands on the ${name} and listens.`)],
+    consult: { activator: npcId, itemId },
+  };
+}
+
 function doWait(world: World, state: GameState): GameLine[] {
   witness(state, witnesses(world, state), "Null waits.");
+  remember(state, "I wait.");
   const foe = state.combatWith;
   if (foe && state.npcs[foe]?.alive && state.npcs[foe].hostile) {
     const lines: GameLine[] = [line("body", "You hesitate.")];
@@ -1122,13 +1219,17 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
   }
 
   const state: GameState = structuredClone(prev);
-  repairLogs(state);
+  repairLogs(state, world);
   state.turns += 1;
   const roomId = state.roomId;
   const wasBlocked = blockedDirs(world, state, roomId);
   const said = spokenFrom(input);
-  if (said) witness(state, witnesses(world, state), `Null says ${quote(said)}`);
+  if (said) {
+    witness(state, witnesses(world, state), `Null says ${quote(said)}`);
+    remember(state, `I say ${quote(said)}`);
+  }
   let lines: GameLine[];
+  let consult: Consult | undefined;
   switch (parsed.type) {
     case "unknown":
       lines = [line("warn", `ASH does not know "${parsed.raw}". /help lists the verbs.`)];
@@ -1138,6 +1239,7 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
       break;
     case "look":
       witness(state, witnesses(world, state), "Null looks around.");
+      remember(state, "I look around.");
       lines = describeRoom(world, state);
       break;
     case "examine":
@@ -1152,9 +1254,18 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
     case "drop":
       lines = doDrop(world, state, parsed.target);
       break;
-    case "talk":
+    case "talk": {
+      const npcId =
+        parsed.topic && isFortune(parsed.topic) ? matchNpc(world, state, parsed.target) : null;
+      if (npcId) {
+        const fortune = beginFortune(world, state, npcId);
+        lines = fortune.lines;
+        consult = fortune.consult;
+        break;
+      }
       lines = doTalk(world, state, parsed.target, parsed.topic);
       break;
+    }
     case "give":
       lines = doGive(world, state, parsed.item, parsed.npc);
       break;
@@ -1173,9 +1284,12 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
     case "flee":
       lines = doFlee(world, state);
       break;
-    case "use":
+    case "use": {
+      const used = matchItem(world, parsed.item, state.inventory);
       lines = doUse(world, state, parsed.item);
+      if (used?.kind === "oracle") consult = { activator: PLAYER_ID, itemId: used.id };
       break;
+    }
     case "say":
       lines = doSay(world, state, parsed.text);
       break;
@@ -1192,7 +1306,7 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
       lines = [line("warn", "The parser shrugged.")];
   }
   noteOpenedDoors(world, state, roomId, wasBlocked);
-  return { state, lines, effect: "none" };
+  return consult ? { state, lines, effect: "none", consult } : { state, lines, effect: "none" };
 }
 
 export const SAVE_KEY = "ash-protocol-tape-v1";

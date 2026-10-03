@@ -25,8 +25,8 @@ function load() {
     readJson<NpcState>(join(root, "npcs", id, "state.json")),
   );
   const diskRooms = readdirSync(join(root, "rooms")).filter((name) => name.endsWith(".json"));
-  assert.equal(diskRooms.length, 20);
-  assert.equal(rooms.length, 20);
+  assert.equal(diskRooms.length, 21);
+  assert.equal(rooms.length, 21);
   for (const id of index.npcs) {
     assert.ok(readdirSync(join(root, "npcs", id)).includes("script.json"));
     assert.ok(readdirSync(join(root, "npcs", id)).includes("state.json"));
@@ -34,9 +34,9 @@ function load() {
   return createWorld(rooms, scripts, states, items, index.start);
 }
 
-test("cartridge loads a connected twenty-room maze", () => {
+test("cartridge loads a connected twenty-one-room maze", () => {
   const world = load();
-  assert.equal(Object.keys(world.rooms).length, 20);
+  assert.equal(Object.keys(world.rooms).length, 21);
   assert.equal(world.rooms["spire-core"].win, true);
   const seen = new Set<string>();
   const queue = [world.start];
@@ -48,7 +48,11 @@ test("cartridge loads a connected twenty-room maze", () => {
       if (next) queue.push(next);
     }
   }
-  assert.equal(seen.size, 20);
+  assert.equal(seen.size, 21);
+  assert.equal(world.rooms["lantern-market"].exits.west, "glass-booth");
+  assert.equal(world.rooms["glass-booth"].exits.east, "lantern-market");
+  assert.deepEqual(world.npcs["madam-wick"].state.inventory, ["crystal-ball"]);
+  assert.equal(world.items["crystal-ball"].kind, "oracle");
 });
 
 test("pacifist route reaches the spire", async () => {

@@ -187,5 +187,18 @@
     "kind": "key",
     "value": 4,
     "text": "A punched coin on a dirty string. The Ferryman pretends not to prefer these to stories."
+  },
+  {
+    "id": "crystal-ball",
+    "name": "crystal ball",
+    "aliases": [
+      "crystal ball",
+      "ball",
+      "crystal",
+      "orb"
+    ],
+    "kind": "oracle",
+    "value": 0,
+    "text": "A fist of orchard-glass that fogs when it is thinking. It does not predict. It repeats, and only to the hands on it."
   }
 ]

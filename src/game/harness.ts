@@ -1,5 +1,6 @@
 import {
   applyCommand,
+  commandWaitsOnOracle,
   findItem,
   isCartridgeMeta,
   isUnheardLine,
@@ -13,12 +14,14 @@ import {
   memoryPrompt,
   noteOpenedDoors,
   noteSpeech,
+  remember,
   repairLogs,
   witness,
   witnessAs,
   witnesses,
 } from "./observe.ts";
-import { memoryUrl } from "./journal.ts";
+import { memoryUrl, publishJournals } from "./journal.ts";
+import { consultOracle, type Reading } from "./oracle.ts";
 import type { CommandResult, GameLine, GameState, ItemDef, NpcScript, World } from "./types.ts";
 
 export const OLLAMA_MODEL = "qwen3:4b";
@@ -430,6 +433,12 @@ function classifyAcquire(world: World, state: GameState, input: string): Acquire
   if (leading) {
     const found = findItem(world, leading[1], ids);
     if (found) return { kind: "id", id: found.id };
+    const carried = findItem(
+      world,
+      leading[1],
+      oraclesInHands(world, state).map((item) => item.id),
+    );
+    if (carried) return { kind: "id", id: carried.id };
     const bare = leading[1]
       .toLowerCase()
       .replace(/[.,!?;:]+$/g, "")
@@ -442,7 +451,35 @@ function classifyAcquire(world: World, state: GameState, input: string): Acquire
   const named = present.filter((item) => mentionsItem(squashed, item));
   if (named.length === 1) return { kind: "id", id: named[0].id };
   if (named.length > 1) return { kind: "ask" };
+  const carried = oraclesInHands(world, state).filter((item) => mentionsItem(squashed, item));
+  if (carried.length === 1) return { kind: "id", id: carried[0].id };
   return { kind: "no" };
+}
+
+function oracleHolder(world: World, state: GameState, itemId: string): string | null {
+  const item = world.items[itemId];
+  if (!item || item.kind !== "oracle") return null;
+  const room = world.rooms[state.roomId];
+  for (const npcId of room?.npcs ?? []) {
+    const npc = state.npcs[npcId];
+    if (!npc?.alive) continue;
+    if (npc.inventory.includes(itemId)) return npcId;
+  }
+  return null;
+}
+
+function oraclesInHands(world: World, state: GameState): ItemDef[] {
+  const room = world.rooms[state.roomId];
+  const items: ItemDef[] = [];
+  for (const npcId of room?.npcs ?? []) {
+    const npc = state.npcs[npcId];
+    if (!npc?.alive) continue;
+    for (const id of npc.inventory) {
+      const item = world.items[id];
+      if (item?.kind === "oracle" && !items.some((held) => held.id === item.id)) items.push(item);
+    }
+  }
+  return items;
 }
 
 export function comeIntoPossession(
@@ -450,23 +487,41 @@ export function comeIntoPossession(
   state: GameState,
   itemId: string,
 ): { ok: boolean; state: GameState; lines: GameLine[] } {
-  repairLogs(state);
+  repairLogs(state, world);
   const roomId = state.roomId;
   const wasBlocked = blockedDirs(world, state, roomId);
-  const item = itemsInRoom(world, state).find((entry) => entry.id === itemId);
-  if (!item) {
-    const name = world.items[itemId]?.name ?? itemId;
+  const item = world.items[itemId];
+  const onGround = itemsInRoom(world, state).some((entry) => entry.id === itemId);
+  const holder = onGround ? null : oracleHolder(world, state, itemId);
+  if (!item || (!onGround && !holder)) {
+    const name = item?.name ?? itemId;
     return {
       ok: false,
       state,
       lines: [line("warn", `There is no ${name} here you can take.`)],
     };
   }
-  const pile = state.roomItems[state.roomId];
-  const index = pile?.indexOf(item.id) ?? -1;
-  if (pile && index >= 0) pile.splice(index, 1);
+  if (onGround) {
+    const pile = state.roomItems[state.roomId];
+    const index = pile?.indexOf(item.id) ?? -1;
+    if (pile && index >= 0) pile.splice(index, 1);
+    witness(state, witnesses(world, state), `Null takes ${item.name}.`);
+    remember(state, `I take the ${item.name}.`);
+  } else if (holder) {
+    const pack = state.npcs[holder].inventory;
+    const held = pack.indexOf(item.id);
+    if (held >= 0) pack.splice(held, 1);
+    const name = world.npcs[holder].script.name;
+    witnessAs(
+      state,
+      witnesses(world, state),
+      holder,
+      `Null takes ${item.name} from me.`,
+      `Null takes ${item.name} from ${name}.`,
+    );
+    remember(state, `I take the ${item.name} from ${name}.`);
+  }
   state.inventory.push(item.id);
-  witness(state, witnesses(world, state), `Null takes ${item.name}.`);
   noteOpenedDoors(world, state, roomId, wasBlocked);
   return { ok: true, state, lines: [line("good", `Taken: ${item.name}.`)] };
 }
@@ -549,6 +604,144 @@ export async function readPossession(
   return parseTake(data.message?.content ?? "", ids);
 }
 
+const WHISPER_SCHEMA = {
+  type: "object",
+  properties: { whisper: { type: "string" } },
+  required: ["whisper"],
+};
+
+const CRYPTIC_SCHEMA = {
+  type: "object",
+  properties: { say: { type: "string" } },
+  required: ["say"],
+};
+
+const oraclePrompts = new Map<string, Promise<string>>();
+
+export function loadOraclePrompt(itemId: string): Promise<string> {
+  const pending = oraclePrompts.get(itemId);
+  if (pending) return pending;
+  const next = fetch(`/ash/oracles/${itemId}.json`)
+    .then(async (res) => {
+      if (!res.ok) return "";
+      const row = (await res.json()) as { id?: unknown; prompt?: unknown };
+      if (row.id !== itemId || typeof row.prompt !== "string") return "";
+      return row.prompt;
+    })
+    .catch(() => "");
+  oraclePrompts.set(itemId, next);
+  return next;
+}
+
+async function readHypnos(
+  world: World,
+  state: GameState,
+  id: string,
+  signal?: AbortSignal,
+): Promise<Reading> {
+  try {
+    await publishJournals(world, state);
+  } catch {
+    // The file may be a turn behind. Hypnos still reads what is on disk.
+  }
+  const response = await fetch(`/hypnos/read?npc=${encodeURIComponent(id)}`, {
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Hypnos answered ${response.status}`);
+  const row = (await response.json()) as { name?: unknown; memory?: unknown; log?: unknown };
+  return {
+    name: typeof row.name === "string" ? row.name : id,
+    memory: typeof row.memory === "string" ? row.memory : "",
+    log: typeof row.log === "string" ? row.log : "",
+  };
+}
+
+async function askModel(
+  schema: unknown,
+  temperature: number,
+  limit: number,
+  system: string,
+  user: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await fetch("/ollama/api/chat", {
+    method: "POST",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      stream: false,
+      think: false,
+      keep_alive: "10m",
+      format: schema,
+      options: { temperature, num_predict: limit },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(`Ollama answered ${response.status}`);
+  const data = (await response.json()) as { message?: { content?: string } };
+  return data.message?.content ?? "";
+}
+
+function askBall(
+  prompt: string,
+  subject: string,
+  reading: Reading,
+  signal?: AbortSignal,
+): Promise<string> {
+  return askModel(
+    WHISPER_SCHEMA,
+    0.3,
+    80,
+    prompt,
+    [
+      `SUBJECT: ${subject}`,
+      "",
+      "MEMORY",
+      reading.memory.trim() || "(none)",
+      "",
+      "LOG",
+      reading.log.trim() || "(nothing)",
+    ].join("\n"),
+    signal,
+  );
+}
+
+async function askCryptic(
+  world: World,
+  state: GameState,
+  npcId: string,
+  whisper: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const role = await loadRole(npcId);
+  const script = world.npcs[npcId]?.script;
+  if (!role || !script) return "";
+  return askModel(
+    CRYPTIC_SCHEMA,
+    0.7,
+    60,
+    [
+      `You are ${script.name} in the text game Ash Protocol. Stay in that life. One sentence.`,
+      "The say field is spoken dialogue only. Do not prefix your name.",
+      "",
+      "ROLE",
+      role.prompt.trim(),
+      "",
+      "You just heard a crystal ball whisper, and nobody else heard it.",
+      "Say one cryptic sentence about it.",
+      "Do not quote the whisper. Do not name the person it was about.",
+      "Do not say that a ball, a glass, or a whisper told you.",
+    ].join("\n"),
+    `Whisper: ${whisper}`,
+    signal,
+  );
+}
+
 async function finishEngine(
   world: World,
   prev: GameState,
@@ -557,6 +750,20 @@ async function finishEngine(
 ): Promise<CommandResult> {
   const result = applyCommand(world, prev, input);
   if (result.state.mode !== "play") return result;
+  if (result.consult) {
+    const prompt = await loadOraclePrompt(result.consult.itemId);
+    return consultOracle(
+      world,
+      result,
+      {
+        prompt,
+        read: (id, readSignal) => readHypnos(world, result.state, id, readSignal),
+        whisper: askBall,
+        cryptic: askCryptic,
+      },
+      signal,
+    );
+  }
   const utterance = speechUtterance(input);
   if (!utterance) return result;
   const prior = result.lines.filter((entry) => entry.kind === "speech").map((entry) => entry.text);
@@ -567,6 +774,7 @@ async function finishEngine(
 
 export function inputWaits(world: World, state: GameState, input: string): boolean {
   if (state.mode !== "play" || isCartridgeMeta(input)) return false;
+  if (commandWaitsOnOracle(world, state, input)) return true;
   const acquire = classifyAcquire(world, state, input);
   if (acquire.kind === "ask") return true;
   return acquire.kind === "no" && speechUtterance(input) !== null;

@@ -22,6 +22,7 @@ function state(patch: Partial<GameState> = {}): GameState {
     npcs: {},
     roomItems: {},
     combatWith: null,
+    playerLog: [],
     ...patch,
   };
 }

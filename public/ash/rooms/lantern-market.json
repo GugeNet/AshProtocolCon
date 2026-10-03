@@ -7,11 +7,12 @@
   "exits": {
     "south": "silt-dock",
     "north": "chapel-static",
-    "east": "scrap-yard"
+    "east": "scrap-yard",
+    "west": "glass-booth"
   },
   "descriptions": [
     {
-      "text": "Canvas roofs, coal braziers, the village that refused to die doing business in a whisper. Scrip changes hands. Rumors change owners. North, a laundromat prays. East, the scrap mountains. South is the dock you already know."
+      "text": "Canvas roofs, coal braziers, the village that refused to die doing business in a whisper. Scrip changes hands. Rumors change owners. North, a laundromat prays. East, the scrap mountains. South is the dock you already know. West, a booth that sells other people's yesterdays."
     }
   ],
   "ground": [],

@@ -1,6 +1,6 @@
 # Ash Protocol
 
-A twenty-room text adventure in the browser. You are Null, a silt-runner in Cinder Reach. Three nights ago the market radio used your voice and told you to bring the key to the Spire. You start on Silt Dock with a bent multitool, one stim, 14 HP, and 24 scrip. You win when you walk into the Spire Core.
+A twenty-one-room text adventure in the browser. You are Null, a silt-runner in Cinder Reach. Three nights ago the market radio used your voice and told you to bring the key to the Spire. You start on Silt Dock with a bent multitool, one stim, 14 HP, and 24 scrip. You win when you walk into the Spire Core.
 
 The cartridge is JSON under `public/ash/`. A rules engine handles movement, talk, trade, and combat. A named take is resolved in the browser. Free speech, and a take that is only a pronoun or is ambiguous, go to a local model: **Qwen3:4b**, served by **Ollama**.
 
@@ -24,7 +24,7 @@ ollama serve
 
 The page posts to `/ollama/api/chat`. Vite forwards that to `http://127.0.0.1:11434`. While `npm run dev` is running, each request and reply prints in that terminal as `[qwen #N]`, including the model, options, messages, status, and reply. `npm run preview` still proxies Ollama and stays quiet.
 
-Scripted verbs keep working if Ollama is down. `say`, other free speech, and an ambiguous take then answer: "The cartridge cannot hear the room. Is Ollama running qwen3:4b?"
+Scripted verbs keep working if Ollama is down. `say`, other free speech, and an ambiguous take then answer: "The cartridge cannot hear the room. Is Ollama running qwen3:4b?" A crystal ball reading needs both Ollama and the Hypnos read on the dev server or preview.
 
 ```bash
 npm run build    # tsc --noEmit, then the Vite production build
@@ -34,7 +34,7 @@ npm run preview
 Tests load the cartridge from `public/ash/` and walk a full route to the Spire:
 
 ```bash
-node --experimental-strip-types --test src/game/harness.test.ts src/game/observe.test.ts src/game/journal.test.ts src/game/walkthrough.test.ts
+node --experimental-strip-types --test src/game/harness.test.ts src/game/observe.test.ts src/game/journal.test.ts src/game/oracle.test.ts src/game/walkthrough.test.ts
 python -m unittest hypnos_test.py
 npx tsc --noEmit
 ```
@@ -58,13 +58,14 @@ The header shows the room, HP, and scrip. HP under 5 turns red.
 | `drop <item>` | Leave it in the room. |
 | `talk <name>` | Greeting, then topics when that person has any. |
 | `talk <name> about <topic>` | One topic from their script. |
+| `ask <name> for a fortune` | If that person is holding a crystal ball, they read someone else in the room. |
 | `give <item> to <name>` | A trade written on that person. |
 | `tell <name> a story` | Their story, when they have one. |
 | `say <words>` | Speak. The script may answer, and then the people in the room. |
 | `trade` | A merchant's shelf. `shop`, `wares`, and `browse` match. |
 | `buy <item>` `sell <item>` | With a merchant in the room. |
 | `pay <name>` | Spend scrip on a bribe or a healing. `bribe` matches. `heal` finds Doc. |
-| `use <item>` | Stims and anything else with a use line. |
+| `use <item>` | Stims, a carried crystal ball, and anything else with a use line. |
 | `attack <name>` | Strike. They hit back. `fight`, `kill`, `hit`, and `strike` match. |
 | `flee` | Leave a fight, usually the way you came. |
 | `wait` | Pass a moment. In a fight, they still swing. `rest` and `z` match. |
@@ -149,7 +150,7 @@ An obstacle blocks one direction until you hold any listed flag or any listed it
 
 ### Items
 
-`items.json` is the catalog. Kinds are `junk`, `weapon`, `gear`, `key`, and `heal`.
+`items.json` is the catalog. Kinds are `junk`, `weapon`, `gear`, `key`, `heal`, and `oracle`.
 
 | Field | Use |
 | --- | --- |
@@ -159,7 +160,7 @@ An obstacle blocks one direction until you hold any listed flag or any listed it
 | `heal` | HP restored by `use` on a `heal` item. The item is consumed. |
 | `text` | What `look at` prints. |
 | `useText` | What `use` prints when the item is not a heal. |
-| `sellRequiresFlag` | Merchants refuse the sale until this flag is set. Keys never sell. |
+| `sellRequiresFlag` | Merchants refuse the sale until this flag is set. Keys and oracles never sell. |
 
 A new game puts `bent-multitool` and `stim` in your pack. Everything else starts on a room floor or in someone's inventory.
 
@@ -184,6 +185,8 @@ A new game puts `bent-multitool` and `stim` in your pack. Everything else starts
 `state.json` is the starting body: `alive`, `hp`, `maxHp`, `hostile`, `mood`, and `inventory`. The engine copies this into the game state at the start of a life.
 
 Each person keeps a log of what they observe. It starts with Null walking into their room. After that it records speech, actions in that room, and what they themselves say and do. Their own lines use "I". A trade is one line, `Trade happens - 1 chemical breather for 16 scrip.` A door that becomes passable while Null is in the room is `Door to east opens.` The log is part of the tape. While `npm run dev` or `npm run preview` is running, each change is also written to `journals/<name>.log`, using that person's name: `journals/Old Coil.log`.
+
+Null keeps his own action log on the tape, `playerLog`, and in `journals/Null.log`. It is what he did and what he heard, in lines such as `I go north.` and `Mare Voss replies "..."`. Hypnos compresses that log with the old memory into `journals/Null.memory.txt`, in the first person. A tape saved before this log starts his journal empty.
 
 Hypnos reads the lines after the last `--- hypnos ---` marker in those logs and writes `journals/<name>.memory.txt`. It then appends that marker. The memory file is included in that person's next Ollama prompt, ahead of the log.
 
@@ -216,6 +219,7 @@ src/game/engine.ts                parser and rules
 src/game/observe.ts               what each person sees
 src/game/journal.ts               log and memory file names
 src/game/harness.ts               takes, speech, and Ollama
+src/game/oracle.ts                crystal ball readings
 hypnos.py                         writes memory files from the logs
 src/game/harness.test.ts
 src/game/walkthrough.test.ts
@@ -231,10 +235,11 @@ Slash commands and the other meta verbs (`help`, `inv`, `save`, `map`, and the r
 `playInput` is the front door:
 
 1. Meta commands pass through to the engine.
-2. A take that names one item here is applied by `comeIntoPossession`. The item moves from `roomItems` into `inventory`.
+2. A take that names one item here is applied by `comeIntoPossession`. The item moves from `roomItems` into `inventory`. An `oracle` can also be taken from the person holding it, and given back.
 3. A pronoun or an ambiguous take calls `readPossession`, which asks Qwen3:4b for one id.
 4. Movement, look, talk, combat, trade, listen, search, and the other scripted verbs go to the engine.
 5. If the line was speech, `hearRoom` asks every living person in the room. Scripted speech from the engine is handed to the model as lines already said, so the reply can stay empty. If every person fails to answer, you get the Ollama warning.
+6. `use` on an oracle you are carrying, or `ask <name> for a fortune` while that person is holding one, consults the crystal ball.
 
 Output is a list of `{ kind, text }`. The kind picks the color: room title, body, exits, speech, combat, warning, good news, map, system.
 
@@ -246,15 +251,31 @@ Speech includes that person's memory file under `MEMORY`, then the log under `WH
 
 ### Hypnos
 
-Hypnos is the batch step that turns a log into a memory. It reads `journals/<name>.log` and writes `journals/<name>.memory.txt`. The file is a short recollection of the visit, in sentences such as `Null came by. He was nice. He asked if I was well.` It includes what they answered and where he went. After it writes, it appends a `--- hypnos ---` line to that log. The next run reads only the lines after the last marker and adds them to the memory. A log with nothing after the marker is left alone. While the dev server or preview is running, saving the log keeps the marker and writes new lines after it.
+Hypnos is the sleep cycle. It sends Qwen3:4b the old `journals/<name>.memory.txt` and the lines of `journals/<name>.log` after the last `--- hypnos ---` marker. The prompt asks for one new memory that compresses both. Thinking may stay on. The file is written only when the reply reads as that person's own recollection: first person, a few sentences, no reasoning and no plan. A reply that is not a memory leaves the file and the marker alone. After a memory is written, Hypnos appends `--- hypnos ---` to the log. The next run compresses that new memory with only the lines after the marker. A log with nothing after the marker is left alone. While the dev server or preview is running, saving the log keeps the marker and writes new lines after it. Null's memory uses I. An NPC's memory uses I, and Null is he.
 
 ```bash
 python hypnos.py
 python hypnos.py --npc old-coil
+python hypnos.py --npc null
 python hypnos.py --dry-run
+python hypnos.py --read-only --npc old-coil
 ```
 
 `--dry-run` prints the memory and does not write it. The next time that person hears speech, the memory file is what they are shown.
+
+`--read-only` needs `--npc`. It prints JSON, `{ id, name, memory, log }`, and does not write the memory or add a marker. `null` is Null. The crystal ball uses this. The dev server and preview expose it as `GET /hypnos/read?npc=<id>`, which runs that command. The log in the JSON has the marker lines removed. The memory is the file Hypnos has already written.
+
+The sleep cycle calls Ollama at `http://127.0.0.1:11434/api/chat` with `qwen3:4b`. It does not turn thinking off. Only the memory field is saved. `--read-only` does not call the model.
+
+### The crystal ball
+
+Madam Wick keeps the crystal ball in the Glass Booth, one step west of the Lantern Market. It is an `oracle`. It is not a person: it has no log, no memory, and it does not hear the room or move. Its prompt is `public/ash/oracles/crystal-ball.json`. The engine does not load that file.
+
+You can take it, drop it, and give it to someone in the room. It only reads for whoever is holding it.
+
+`ask wick for a fortune` works while she holds it. `use crystal ball` works while you hold it. The ball picks one other living person in the room, never the one who woke it. It asks Hypnos for that person's memory and log, read-only, then asks Qwen for one or two sentences drawn from those texts.
+
+If she woke it, the whisper is written only to her log. You do not see it. She says one cryptic sentence about it, and that sentence is what the room hears. If you woke it, you see the whisper, and it is written to your log. The person who was read is not told. If nobody else is there, or that person has no memory and no log, the glass stays dark. Shops do not buy an oracle.
 
 Speech uses temperature `0.6`, `num_predict: 180`, and a JSON schema `{ say, met }`. The system prompt names the person, the room, the mood from `state.json`, the role text, and each objective as open or already met, and as evidence that holds or evidence that does not. Hostile people are told to threaten and to leave `met` empty. `acceptMarks` then drops any flag whose evidence fails, consumes the listed items, and grants the listed items.
 

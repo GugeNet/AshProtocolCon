@@ -24,7 +24,7 @@ const SLASH = [
 
 const BOOT = [
   "ASH PROTOCOL CARTRIDGE",
-  "MODEL VIC-2147    ·    20 ROOMS",
+  "MODEL VIC-2147    ·    21 ROOMS",
   "",
   "**** ASH BASIC V2 ****",
   "",
@@ -115,7 +115,7 @@ export function AshTerminal() {
     try {
       const parsed = JSON.parse(raw) as GameState;
       if (parsed.version !== 1 || !parsed.npcs || !current.rooms[parsed.roomId]) return null;
-      return repairLogs(parsed);
+      return repairLogs(parsed, current);
     } catch {
       return null;
     }
