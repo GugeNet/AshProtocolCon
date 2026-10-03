@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { applyCommand } from "./engine.ts";
+import { playInput } from "./harness.ts";
 import type { ItemDef, NpcScript, NpcState, RoomDef } from "./types.ts";
 import { createWorld, initialState } from "./world.ts";
 
@@ -50,7 +51,7 @@ test("cartridge loads a connected twenty-room maze", () => {
   assert.equal(seen.size, 20);
 });
 
-test("pacifist route reaches the spire", () => {
+test("pacifist route reaches the spire", async () => {
   const world = load();
   let state = initialState(world);
   const commands = [
@@ -104,7 +105,7 @@ test("pacifist route reaches the spire", () => {
     "s",
   ];
   for (const command of commands) {
-    const result = applyCommand(world, state, command);
+    const result = await playInput(world, state, command);
     state = result.state;
     if (state.mode === "dead") {
       assert.fail(`died on "${command}": ${result.lines.map((l) => l.text).join(" | ")}`);

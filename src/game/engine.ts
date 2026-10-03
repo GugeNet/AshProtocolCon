@@ -32,7 +32,6 @@ type Parsed =
   | { type: "examine"; target: string }
   | { type: "search" }
   | { type: "listen" }
-  | { type: "take"; target: string }
   | { type: "drop"; target: string }
   | { type: "talk"; target: string; topic?: string }
   | { type: "give"; item: string; npc: string }
@@ -85,9 +84,6 @@ function parse(raw: string): Parsed {
   }
   if (/^(search|rummage)$/.test(lower)) return { type: "search" };
   if (/^(listen|pray|kneel)$/.test(lower)) return { type: "listen" };
-  if ((m = /^(?:take|get|pick up|grab)\s+(.+)$/.exec(lower))) {
-    return { type: "take", target: m[1] };
-  }
   if ((m = /^(?:drop|leave)\s+(.+)$/.exec(lower))) return { type: "drop", target: m[1] };
   if (
     (m =
@@ -151,8 +147,19 @@ function removeItem(state: GameState, id: string): boolean {
   return true;
 }
 
+function bareNoun(query: string): string {
+  let q = query.toLowerCase().trim().replace(/\s+/g, " ");
+  q = q.replace(/[.,!?;:]+$/g, "").trim();
+  while (/^(?:the|a|an|some|my|your|that|this)\s+/.test(q)) {
+    q = q.replace(/^(?:the|a|an|some|my|your|that|this)\s+/, "");
+  }
+  q = q.replace(/[.,!?;:]+$/g, "").trim();
+  return q;
+}
+
 function matchItem(world: World, query: string, ids: string[]): ItemDef | null {
-  const q = query.toLowerCase().trim();
+  const q = bareNoun(query);
+  if (q.length < 2) return null;
   const pool = ids.map((id) => world.items[id]).filter(Boolean);
   const score = (item: ItemDef) => {
     if (item.id === q || item.name.toLowerCase() === q) return 100;
@@ -171,6 +178,21 @@ function matchItem(world: World, query: string, ids: string[]): ItemDef | null {
     return null;
   }
   return ranked[0].item;
+}
+
+export function findItem(world: World, query: string, ids: string[]): ItemDef | null {
+  return matchItem(world, query, ids);
+}
+
+export function itemsInRoom(world: World, state: GameState): ItemDef[] {
+  const room = world.rooms[state.roomId];
+  return visibleGround(world, state, room)
+    .map((id) => world.items[id])
+    .filter((item): item is ItemDef => Boolean(item));
+}
+
+export function isCartridgeMeta(input: string): boolean {
+  return parse(input).type === "meta";
 }
 
 function npcScore(script: NpcScript, query: string): number {
@@ -280,7 +302,7 @@ function helpLines(): GameLine[] {
         "  look                 reprint the room",
         "  look at <thing>",
         "  search               listen",
-        "  take <item>          drop <item>",
+        "  take [the] <item>    drop <item>",
         "  talk <name>",
         "  talk <name> about <topic>",
         "  give <item> to <name>",
@@ -572,18 +594,6 @@ function doListen(world: World, state: GameState): GameLine[] {
   if (!step) return [line("body", "Only wind, and the wind is out of new words.")];
   if (step.setFlag) state.flags[step.setFlag] = true;
   return [line("speech", step.say)];
-}
-
-function doTake(world: World, state: GameState, target: string): GameLine[] {
-  const room = world.rooms[state.roomId];
-  const visible = visibleGround(world, state, room);
-  const item = matchItem(world, target, visible);
-  if (!item) return [line("warn", `There is no ${target} here you can take.`)];
-  const pile = state.roomItems[room.id];
-  const idx = pile.indexOf(item.id);
-  if (idx >= 0) pile.splice(idx, 1);
-  addItem(state, item.id);
-  return [line("good", `Taken: ${item.name}.`)];
 }
 
 function doDrop(world: World, state: GameState, target: string): GameLine[] {
@@ -969,9 +979,6 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
     case "listen":
       lines = doListen(world, state);
       break;
-    case "take":
-      lines = doTake(world, state, parsed.target);
-      break;
     case "drop":
       lines = doDrop(world, state, parsed.target);
       break;
@@ -1018,3 +1025,20 @@ export function applyCommand(world: World, prev: GameState, input: string): Comm
 }
 
 export const SAVE_KEY = "ash-protocol-tape-v1";
+
+const UNHEARD = new Set([
+  "Your words sit in the ash. Nobody picks them up.",
+  "The room knows that word and is not ready to honor it.",
+]);
+
+export function speechUtterance(input: string): string | null {
+  const parsed = parse(input);
+  if (parsed.type === "say") return parsed.text;
+  if (parsed.type === "unknown" && /\s/.test(parsed.raw)) return parsed.raw;
+  return null;
+}
+
+export function isUnheardLine(entry: GameLine): boolean {
+  if (UNHEARD.has(entry.text)) return true;
+  return entry.kind === "warn" && entry.text.startsWith('ASH does not know "');
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { SAVE_KEY, applyCommand, describeRoom, introLines } from "../game/engine";
+import { SAVE_KEY, applyCommand, describeRoom, introLines, isCartridgeMeta } from "../game/engine";
+import { inputWaits, playInput } from "../game/harness";
 import { loadWorld } from "../game/load";
 import { initialState } from "../game/world";
 import type { GameLine, GameState, World } from "../game/types";
@@ -50,7 +51,11 @@ export function AshTerminal() {
   const [fault, setFault] = useState("");
   const [armed, setArmed] = useState<null | "exit" | "restart">(null);
   const [live, setLive] = useState(false);
+  const [hearing, setHearing] = useState(false);
   const idRef = useRef(1);
+  const gameRef = useRef<GameState | null>(null);
+  const turnRef = useRef(0);
+  const listenAbort = useRef<AbortController | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const history = useRef<string[]>([]);
@@ -69,13 +74,18 @@ export function AshTerminal() {
     const node = scroller.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
-  }, [lines, screen]);
+  }, [lines, screen, hearing]);
 
   useEffect(() => {
     if (screen === "play" && live && window.matchMedia("(min-width: 768px)").matches) {
       inputRef.current?.focus();
     }
   }, [screen, live]);
+
+  function commitGame(next: GameState) {
+    gameRef.current = next;
+    setGame(next);
+  }
 
   function stamp(batch: GameLine[]): Row[] {
     return batch.map((entry) => ({ ...entry, id: idRef.current++ }));
@@ -114,7 +124,9 @@ export function AshTerminal() {
   function begin(current: World, state: GameState, resumed: boolean) {
     for (const t of bootTimer.current) window.clearTimeout(t);
     bootTimer.current = [];
-    setGame(state);
+    listenAbort.current?.abort();
+    setHearing(false);
+    commitGame(state);
     setScreen("play");
     setDraft("");
     setArmed(null);
@@ -173,14 +185,40 @@ export function AshTerminal() {
     }
   }
 
-  function submit(raw: string) {
-    if (!world || !game || !live) return;
+  async function submit(raw: string) {
+    const current = gameRef.current ?? game;
+    if (!world || !current || !live) return;
     const text = raw.trim();
     if (!text) return;
+    const turn = ++turnRef.current;
+    listenAbort.current?.abort();
+    setHearing(false);
     remember(text);
     setDraft("");
     const echo: GameLine = { kind: "echo", text: `> ${text}` };
-    const result = applyCommand(world, game, text);
+
+    if (!isCartridgeMeta(text)) {
+      const controller = new AbortController();
+      listenAbort.current = controller;
+      if (inputWaits(world, current, text)) setHearing(true);
+      setLines((prev) => [...prev, ...stamp([echo])]);
+      try {
+        const result = await playInput(world, current, text, controller.signal);
+        if (turn !== turnRef.current || controller.signal.aborted) return;
+        commitGame(result.state);
+        setLines((prev) => [...prev, ...stamp(result.lines)]);
+        if (result.state.mode !== "dead") writeTape(result.state);
+      } catch (error) {
+        if (turn !== turnRef.current || controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : "The room stays quiet.";
+        setLines((prev) => [...prev, ...stamp([{ kind: "warn", text: message }])]);
+      } finally {
+        if (turn === turnRef.current) setHearing(false);
+      }
+      return;
+    }
+
+    const result = applyCommand(world, current, text);
 
     if (result.effect === "exit") {
       if (armed === "exit") {
@@ -227,13 +265,13 @@ export function AshTerminal() {
     if (armed) setArmed(null);
 
     if (result.effect === "clear") {
-      setGame(result.state);
+      commitGame(result.state);
       setLines(stamp(describeRoom(world, result.state)));
       return;
     }
 
     if (result.effect === "save") {
-      if (game.mode === "dead") {
+      if (current.mode === "dead") {
         setLines((prev) => [
           ...prev,
           ...stamp([
@@ -243,7 +281,7 @@ export function AshTerminal() {
         ]);
         return;
       }
-      writeTape(game);
+      writeTape(current);
       setLines((prev) => [
         ...prev,
         ...stamp([echo, { kind: "sys", text: "Tape written. The shelf will keep it." }]),
@@ -260,7 +298,7 @@ export function AshTerminal() {
         ]);
         return;
       }
-      setGame(tape);
+      commitGame(tape);
       setLines((prev) => [
         ...prev,
         ...stamp([echo, { kind: "sys", text: "Tape loaded." }, ...describeRoom(world, tape)]),
@@ -268,7 +306,7 @@ export function AshTerminal() {
       return;
     }
 
-    setGame(result.state);
+    commitGame(result.state);
     setLines((prev) => [...prev, ...stamp([echo, ...result.lines])]);
     if (result.state.mode !== "dead") writeTape(result.state);
   }
@@ -378,6 +416,7 @@ export function AshTerminal() {
               {row.text}
             </p>
           ))}
+          {hearing ? <p className="text-dim">The room is listening…</p> : null}
         </div>
       </div>
 
@@ -483,7 +522,9 @@ export function AshTerminal() {
             autoComplete="off"
             spellCheck={false}
             enterKeyHint="send"
-            placeholder={live ? "command or /help" : "mounting cartridge"}
+            placeholder={
+              hearing ? "the room is listening — commands still work" : live ? "command or /help" : "mounting cartridge"
+            }
             className="min-h-12 w-full bg-transparent text-2xl text-phosphor outline-none placeholder:text-dim disabled:opacity-60"
           />
           <span className="cursor-block" aria-hidden="true" />
