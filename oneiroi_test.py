@@ -68,28 +68,48 @@ class OneiroiTests(unittest.TestCase):
             "I already traded a stim.",
             "Trade happens - stim tab for glowcapsule.\nNull takes frayed cable.",
         )
+        self.assertIn("WAKING LIFE", prompt)
         self.assertIn("MEMORY", prompt)
         self.assertIn("JOURNAL", prompt)
+        self.assertIn("You know ASH is coughing in the chapel.", prompt)
+        self.assertIn("waking rule", prompt)
+        self.assertIn("not a retelling", prompt)
         self.assertIn("I already traded a stim.", prompt)
         self.assertIn("Null hands over the stim tab and receives the glowcapsule.", prompt)
         self.assertIn("Null takes frayed cable.", prompt)
         self.assertIn("he for Null", prompt)
         self.assertIn('{"dream": "the dream"}', prompt)
-        self.assertNotIn("You know ASH is coughing in the chapel.", prompt)
+        self.assertIn(f"within {Oneiroi.MAX_DREAM_CHARS} characters", prompt)
         self.assertNotIn("Trade happens - stim tab for glowcapsule.", prompt)
+        self.assertNotIn("send-them-to-the-chapel", prompt)
+
+        tasked = coil()
+        tasked["role"] = {
+            "prompt": "You know ASH is coughing in the chapel.",
+            "objectives": [{"id": "send-them-to-the-chapel", "goal": "Tell them to kneel in the chapel."}],
+        }
+        with_task = Oneiroi.dream_prompt(tasked, "I waited.", "Null waits.")
+        self.assertIn("You know ASH is coughing in the chapel.", with_task)
+        self.assertNotIn("send-them-to-the-chapel", with_task)
+        self.assertNotIn("Tell them to kneel in the chapel.", with_task)
 
         player = Oneiroi.dream_prompt(hypnos.player_person(), "I went north.", "I go north.")
         self.assertIn("Use I", player)
         self.assertNotIn("he for Null", player)
+        self.assertIn("Null, a silt-runner.", player)
+        self.assertNotIn("Do not invent places", player)
         self.assertIn("I went north.", player)
         self.assertIn("I go north.", player)
 
     def test_temperature_is_the_sampling_temperature(self):
         body = Oneiroi.chat_body("prompt", 1.4)
         self.assertEqual(body["temperature"], 1.4)
-        self.assertEqual(body["max_tokens"], 512)
+        self.assertEqual(body["max_tokens"], 256)
         self.assertEqual(body["response_format"]["schema"]["required"], ["dream"])
-        self.assertIn("dream field", body["messages"][0]["content"])
+        self.assertIn("spirit of dreams", body["messages"][0]["content"])
+        self.assertIn("write everything in poetry", body["messages"][0]["content"])
+        self.assertIn("as a symbol", body["messages"][0]["content"])
+        self.assertIn("Do not retell the journal in order.", body["messages"][0]["content"])
         self.assertFalse(Oneiroi.temperature_ok(-0.1))
         self.assertFalse(Oneiroi.temperature_ok(2.1))
         self.assertFalse(Oneiroi.temperature_ok(float("nan")))
@@ -105,6 +125,20 @@ class OneiroiTests(unittest.TestCase):
         self.assertEqual(Oneiroi.clean_dream("He walks the dock alone."), "")
         self.assertEqual(Oneiroi.dream_event(kept), f"I dream. {kept}")
         self.assertEqual(Oneiroi.dream_event("I dream of the dock"), "I dream of the dock.")
+
+    def test_a_dream_stays_within_the_maximum_length(self):
+        long = " ".join(["I walk the dock and the silt speaks."] * 40)
+        event = Oneiroi.dream_event(long)
+        self.assertLessEqual(len(event), Oneiroi.MAX_DREAM_CHARS)
+        self.assertTrue(event.startswith("I dream."))
+        self.assertTrue(event.endswith("."))
+        self.assertIn("the silt speaks.", event)
+
+        huge = "I " + " ".join(["silt"] * 400)
+        clipped = Oneiroi.dream_event(huge)
+        self.assertLessEqual(len(clipped), Oneiroi.MAX_DREAM_CHARS)
+        self.assertTrue(clipped.startswith("I dream."))
+        self.assertTrue(clipped.endswith(" silt."))
 
     def test_dry_run_writes_nothing_and_a_dream_is_one_journal_event(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -204,10 +238,15 @@ class OneiroiTests(unittest.TestCase):
             self.assertIn("--- Old Coil (temperature 0.8) ---", text)
             self.assertIn("temperature: 0.8", text)
             self.assertIn("SYSTEM", text)
-            self.assertIn("dream field", text)
+            self.assertIn("spirit of dreams", text)
+            self.assertIn("write everything in poetry", text)
             self.assertIn("USER", text)
             self.assertIn("MEMORY", text)
             self.assertIn("Null came by.", text)
+            self.assertIn("WAKING LIFE", text)
+            self.assertIn("bolted deckchair", text)
+            self.assertIn("waking rule", text)
+            self.assertNotIn("send-them-to-the-chapel", text)
             self.assertIn("JOURNAL", text)
             self.assertIn("Null waits on the dock.", text)
             self.assertFalse(journals.exists() and any(journals.iterdir()))

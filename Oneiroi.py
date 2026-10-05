@@ -34,12 +34,25 @@ import hypnos
 ROOT = Path(__file__).resolve().parent
 DEFAULT_TEMPERATURE = 0.8
 MAX_TEMPERATURE = 2.0
+MAX_DREAM_CHARS = 480
 
 DREAM_SCHEMA = {
     "type": "object",
     "properties": {"dream": {"type": "string"}},
     "required": ["dream"],
 }
+
+SYSTEM_PROMPT = (
+    "You are Oneiroi, the spirit of dreams. You read a waking life, a memory, and a journal, "
+    "and you cook one dream from them. You write everything in poetry. In dreams, things can speak, "
+    "people can become animals, and nature can have the wrong colors. Do not use reasoning. "
+    "Invent freely inside what they already are. It is just a dream.\n"
+    "The dream is not a retelling. Join two memories, change the hour, and let a truth they already know "
+    "appear as a symbol instead of as the event. Do not explain the symbol.\n"
+    "Do not bring in a stranger, a street, a price, or an item that is in none of those sources. "
+    "A changed form of something already there is still that thing.\n"
+    "A sentence from the memory may return, altered. Do not retell the journal in order."
+)
 
 _LLM = None
 
@@ -129,6 +142,18 @@ def _player(person: dict) -> bool:
     return bool(person.get("player")) or person["id"] == hypnos.PLAYER_ID
 
 
+def waking_life(person: dict) -> str:
+    """Who they are when awake. Null's memory rules are not a life, so he contributes his presence."""
+    script = person.get("script") or {}
+    if _player(person):
+        return str(script.get("presence") or "").strip() or "Null, a silt-runner."
+    role = person.get("role") or {}
+    text = str(role.get("prompt") or "").strip()
+    if text:
+        return text
+    return str(script.get("presence") or "").strip()
+
+
 def dream_prompt(person: dict, memory: str, log: str) -> str:
     name = str(person["script"].get("name") or person["id"])
     player = _player(person)
@@ -138,22 +163,35 @@ def dream_prompt(person: dict, memory: str, log: str) -> str:
         voice = f"You are {name}. Use I for yourself and he for Null. Say Null's name when he is in the dream."
     remembered = memory.strip() or "(none yet)"
     seen = hypnos.clip_log(hypnos.gloss_log(log, player)).strip() or "(nothing in the journal)"
+    life = waking_life(person).strip() or "(none)"
     lines = [
         f"Write {name}'s dream.",
         voice,
-        "You are given the memory and the journal.",
-        "Write one dream this person could have while asleep. Make it from that memory and that journal.",
-        "A dream may join two memories, change the hour, or repeat a place. Do not add people, places, prices, or items that are not already there.",
-        "A sentence from the memory may return. Do not retell the journal in order.",
-        "Write it in the first person, as the dream itself, in a few short sentences.",
-        "Do not include reasoning, a plan, a heading, or a description of clothes or the job.",
+        "You are given a waking life, a memory, and a journal. Cook one dream from all three.",
+        "The dream is not a retelling. Do not walk the journal in order and do not quote it.",
+        "What they know may appear as an image. Do not explain the image.",
+        "Write it in the first person, as the dream itself.",
+        f"Keep the dream within {MAX_DREAM_CHARS} characters.",
+        "Do not recite the waking life, and do not include reasoning, a plan, or a heading.",
         "Your response must be the dream, not a reply about it.",
         'Put the dream here and nowhere else: {"dream": "the dream"}',
     ]
-    hint = hypnos.trade_hint(seen, player)
-    if hint:
-        lines.append(hint)
-    lines.extend(["", "MEMORY", remembered, "", "JOURNAL", seen])
+    if hypnos.trade_hint(seen, player):
+        lines.append("If the dream touches a trade, keep who gave the item and who received it.")
+    lines.extend(
+        [
+            "",
+            "WAKING LIFE",
+            "Who they are when awake. Mine it for images. A line here that forbids poetry, invention, or leaving a room is a waking rule. The dream may break it.",
+            life,
+            "",
+            "MEMORY",
+            remembered,
+            "",
+            "JOURNAL",
+            seen,
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -205,28 +243,40 @@ def copies_journal(dream: str, log: str) -> bool:
     return len(dream_runs & log_runs) / len(dream_runs) > 0.5
 
 
+def clip_dream(text: str, limit: int = MAX_DREAM_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    window = text[:limit]
+    sentence = max(window.rfind("."), window.rfind("!"), window.rfind("?"))
+    if sentence >= limit // 2:
+        return window[: sentence + 1]
+    space = window.rfind(" ")
+    clipped = window[:limit].rstrip() if space <= 0 else window[:space].rstrip(" ,;:-")
+    if clipped.endswith((".", "!", "?")):
+        return clipped
+    if len(clipped) + 1 <= limit:
+        return clipped + "."
+    return clipped[: limit - 1].rstrip(" ,;:-") + "."
+
+
 def dream_event(dream: str) -> str:
     flat = re.sub(r"\s+", " ", dream).strip()
     if not flat.endswith((".", "!", "?")):
         flat += "."
-    if re.match(r"(?i)^i dream\b", flat):
-        return flat
-    return f"I dream. {flat}"
+    if not re.match(r"(?i)^i dream\b", flat):
+        flat = f"I dream. {flat}"
+    return clip_dream(flat)
 
 
 def chat_body(prompt: str, temperature: float) -> dict:
     return {
         "temperature": temperature,
-        "max_tokens": 512,
+        "max_tokens": 256,
         "response_format": {"type": "json_object", "schema": DREAM_SCHEMA},
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "Write one first-person dream from a memory and a journal. "
-                    "Your response is that dream, in the dream field, with no reasoning. "
-                    "Do not add people, places, prices, or items that are not in the memory or the journal."
-                ),
+                "content": SYSTEM_PROMPT,
             },
             {"role": "user", "content": prompt},
         ],
