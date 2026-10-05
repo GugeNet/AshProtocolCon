@@ -3,7 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { applyCommand } from "./engine.ts";
-import { playInput } from "./harness.ts";
+import { ensureState } from "./facts.ts";
+import { playInput, type HarnessIo } from "./harness.ts";
 import type { ItemDef, NpcScript, NpcState, RoomDef } from "./types.ts";
 import { createWorld, initialState } from "./world.ts";
 
@@ -54,6 +55,15 @@ test("cartridge loads a connected twenty-one-room maze", () => {
   assert.deepEqual(world.npcs["madam-wick"].state.inventory, ["crystal-ball"]);
   assert.equal(world.items["crystal-ball"].kind, "oracle");
 });
+
+const offline: Partial<HarnessIo> = {
+  interpret: async () => {
+    throw new Error("slash commands do not need the model");
+  },
+  role: async () => null,
+  memory: async () => "",
+  voice: async (_world, _state, ask) => ({ say: ask.beats.map((beat) => beat.gist).join(" "), met: [] }),
+};
 
 test("pacifist route reaches the spire", async () => {
   const world = load();
@@ -109,7 +119,7 @@ test("pacifist route reaches the spire", async () => {
     "s",
   ];
   for (const command of commands) {
-    const result = await playInput(world, state, command);
+    const result = await playInput(world, state, `/${command}`, undefined, offline);
     state = result.state;
     if (state.mode === "dead") {
       assert.fail(`died on "${command}": ${result.lines.map((l) => l.text).join(" | ")}`);
@@ -119,8 +129,8 @@ test("pacifist route reaches the spire", async () => {
   assert.equal(state.roomId, "spire-core");
   assert.ok(state.visited.length >= 16);
   assert.ok(state.inventory.includes("protocol-key"));
-  assert.ok(state.flags.hymn_heard);
-  assert.ok(state.flags.gate_open);
+  assert.ok(state.mind.some((item) => item.id === "hymn"));
+  assert.equal(state.places["protocol-gate"].seal, "open");
 });
 
 test("flood, pike, and the pit each refuse a shortcut", () => {
@@ -141,11 +151,50 @@ test("flood, pike, and the pit each refuse a shortcut", () => {
   assert.equal(result.state.roomId, "smugglers-cut");
   assert.match(result.lines.map((l) => l.text).join("\n"), /Pike|paid/i);
 
-  state.flags.razor_passed = true;
+  state.places["combat-pit"].stair = "clear";
   state.roomId = "combat-pit";
   result = applyCommand(world, state, "s");
   assert.equal(result.state.roomId, "combat-pit");
   assert.match(result.lines.map((l) => l.text).join("\n"), /cipher/i);
+});
+
+test("a version-1 tape's flags become things in the world", () => {
+  const world = load();
+  const state = initialState(world) as ReturnType<typeof initialState> & {
+    flags?: Record<string, boolean>;
+  };
+  state.version = 1;
+  state.flags = {
+    hymn_heard: true,
+    password_known: true,
+    gate_open: true,
+    pike_passed: true,
+    ferryman_paid: true,
+    kite_passed: true,
+    razor_passed: true,
+    shard_a_found: true,
+    heard_coil_ash: true,
+    coil_traded: true,
+    coil_story: true,
+    heard_sister_ash: true,
+    cipher_got: true,
+  };
+  ensureState(state, world);
+  assert.equal(state.version, 2);
+  assert.equal(state.flags, undefined);
+  assert.ok(state.mind.some((item) => item.id === "hymn"));
+  assert.ok(state.air.includes("cinder"));
+  assert.equal(state.places["protocol-gate"].seal, "open");
+  assert.equal(state.places["smugglers-cut"].chain, "down");
+  assert.equal(state.places["black-canal"].skiff, "loose");
+  assert.equal(state.places["watchtower"].hatch, "open");
+  assert.equal(state.places["combat-pit"].stair, "clear");
+  assert.equal(state.places["ash-well"].cache, "empty");
+  assert.ok(state.npcs["old-coil"].mind.some((item) => item.id === "told-ash"));
+  assert.ok(state.npcs["old-coil"].mind.some((item) => item.id === "traded-light"));
+  assert.ok(state.npcs["old-coil"].mind.some((item) => item.id === "paid-story"));
+  assert.ok(state.npcs["sister-static"].mind.some((item) => item.id === "saved-the-word"));
+  assert.ok(state.npcs["ash-fragment"].mind.some((item) => item.id === "gave-tape"));
 });
 
 test("a killing blow leaves the previous moment unsaved by the engine", () => {

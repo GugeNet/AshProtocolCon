@@ -8,16 +8,16 @@
     "witch"
   ],
   "presence": "Madam Wick sits too straight for the chair, a crystal ball in both hands, arguing with it under her breath.",
-  "greeting": "\"Receipt. You came in on a Tuesday, which is not a day, it is a direction. Sit, or don't. The glass is already bored of you.\"",
+  "greeting": "Call them receipt. They came in on a Tuesday, which is a direction, not a day. Sit or don't; the glass is already bored of them.",
   "topics": {
     "glass": {
-      "say": "\"It is not a toy and it is not a god. It is a throat with no body. Ask me for a fortune if you want it to use that throat.\""
+      "gist": "The ball is not a toy and not a god; it is a throat with no body. If they want it to use that throat, they ask you for a fortune."
     },
     "market": {
-      "say": "\"East. They sell things that stay sold. I sell the moment before you did the thing. Mare invoices. I eavesdrop on yesterday.\""
+      "gist": "The market is east. They sell things that stay sold; you sell the moment before they did the thing. Mare invoices. You eavesdrop on yesterday."
     },
     "spire": {
-      "say": "\"Tall rooms make short memories. I don't do tall. I do the booth. If the city wants a lung, it can inhale without my glass.\""
+      "gist": "Tall rooms make short memories. You do not do tall; you do the booth. The city can inhale without your glass."
     }
   },
   "trades": [],

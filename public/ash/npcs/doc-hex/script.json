@@ -7,31 +7,29 @@
     "doc hex"
   ],
   "presence": "Doc Hex looks up from a stitch, gauges your color, and already knows your price.",
-  "greeting": "\"Bleeding is extra. Breathing is negotiable. Talk.\"",
+  "greeting": "Brusque welcome: bleeding costs extra, breathing is negotiable. Tell them to talk.",
   "topics": {
     "heal": {
-      "say": "\"Six scrip and I put you back together. Or bring me a clean filter from the orchard and I will pretend to be generous about a breather.\""
+      "gist": "Six scrip and you put them back together. Or bring a clean filter from the glass orchard and you will trade them a breather."
     },
     "breather": {
-      "say": "\"I have one. I don't sell it. I trade it for a filter that hasn't met the ash. The orchard grows that kind of miracle by accident.\""
+      "gist": "You have one breather and you do not sell it. You trade it for a filter that has not met the ash; the glass orchard grows those by accident."
     },
     "ash": {
-      "say": "\"If ASH is talking again, wash your hands before you touch my bus. Municipal ghosts shed.\""
+      "gist": "If ASH is talking again, they wash their hands before they touch your bus. Municipal ghosts shed."
     }
   },
   "trades": [
     {
       "give": "clean-filter",
       "receive": "breather",
-      "setFlag": "doc_filter",
-      "onceFlag": "doc_filter",
-      "say": "Hex holds the filter to the honest light, grunts, and slides a chemical breather across the dashboard. \"Don't inhale the pretty colors.\""
+      "gist": "You held the clean filter to the light, grunted, and slid the chemical breather across to them. Warn them not to inhale the pretty colors."
     }
   ],
   "bribe": {
     "cost": 6,
     "heal": true,
-    "say": "Hex's needle finds a vein that still cares. The room steadies. You are whole again, or close enough to lie about it. Six scrip poorer."
+    "gist": "You took the six scrip and patched them up. They are whole again, or close enough to lie about it."
   },
   "say": [],
   "combat": {

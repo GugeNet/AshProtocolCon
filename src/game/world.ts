@@ -1,5 +1,8 @@
+import { eachFact, ensureState } from "./facts.ts";
 import { noteArrival } from "./observe.ts";
 import type {
+  Change,
+  Cond,
   Dir,
   GameState,
   ItemDef,
@@ -52,6 +55,32 @@ export function createWorld(
   const needItem = (id: string, where: string) => {
     if (!items[id]) throw new Error(`unknown item ${id} at ${where}`);
   };
+  const checkCond = (cond: Cond | undefined, where: string) => {
+    for (const fact of eachFact(cond)) {
+      if ("carrying" in fact) needItem(fact.carrying, where);
+      if ("heldBy" in fact) {
+        if (!npcs[fact.heldBy]) throw new Error(`unknown npc ${fact.heldBy} at ${where}`);
+        needItem(fact.item, where);
+      }
+      if ("recalls" in fact && !npcs[fact.npc]) throw new Error(`unknown npc ${fact.npc} at ${where}`);
+      if ("gone" in fact && !npcs[fact.gone]) throw new Error(`unknown npc ${fact.gone} at ${where}`);
+      if ("place" in fact && fact.room && !rooms[fact.room]) {
+        throw new Error(`unknown room ${fact.room} at ${where}`);
+      }
+    }
+  };
+  const checkChanges = (changes: Change[] | undefined, where: string) => {
+    for (const change of changes ?? []) {
+      if ("recall" in change && change.npc && !npcs[change.npc]) {
+        throw new Error(`unknown npc ${change.npc} at ${where}`);
+      }
+      if ("place" in change && !rooms[change.room]) {
+        throw new Error(`unknown room ${change.room} at ${where}`);
+      }
+    }
+  };
+
+  for (const item of Object.values(items)) checkCond(item.sellWhen, `${item.id} sell`);
 
   for (const room of Object.values(rooms)) {
     for (const dir of DIRS) {
@@ -69,33 +98,62 @@ export function createWorld(
     for (const npcId of room.npcs) {
       if (!npcs[npcId]) throw new Error(`${room.id} unknown npc ${npcId}`);
     }
-    for (const g of room.ground) needItem(g.id, room.id);
+    for (const desc of room.descriptions) {
+      checkCond(desc.when, room.id);
+      checkCond(desc.unless, room.id);
+    }
+    for (const g of room.ground) {
+      needItem(g.id, room.id);
+      checkCond(g.hiddenUntil, room.id);
+    }
     for (const step of room.onListen?.steps ?? []) {
       if (step.requiresItem) needItem(step.requiresItem, `${room.id} listen`);
+      checkChanges(step.change, `${room.id} listen`);
     }
-    for (const id of room.onSearch?.grantItems ?? []) needItem(id, `${room.id} search`);
-    for (const id of room.onSearch?.requiresAnyItems ?? []) needItem(id, `${room.id} search need`);
-    for (const o of room.obstacles) {
-      for (const id of o.anyItem ?? []) needItem(id, `${room.id} obstacle`);
+    if (room.onSearch) {
+      checkCond(room.onSearch.when, `${room.id} search`);
+      checkCond(room.onSearch.done, `${room.id} search`);
+      checkChanges(room.onSearch.change, `${room.id} search`);
+      for (const id of room.onSearch.grantItems ?? []) needItem(id, `${room.id} search`);
     }
+    for (const obstacle of room.obstacles) checkCond(obstacle.when, `${room.id} obstacle`);
   }
 
   for (const { script, state } of Object.values(npcs)) {
     for (const id of state.inventory) needItem(id, `${script.id} pack`);
     for (const id of script.shop?.sells ?? []) needItem(id, `${script.id} shop`);
+    for (const alt of script.presenceWhen ?? []) checkCond(alt.when, `${script.id} presence`);
+    for (const topic of Object.values(script.topics)) checkChanges(topic.change, `${script.id} topic`);
     for (const trade of script.trades) {
       needItem(trade.give, `${script.id} trade`);
       if (trade.receive) needItem(trade.receive, `${script.id} trade receive`);
+      checkCond(trade.once, `${script.id} trade`);
+      checkChanges(trade.change, `${script.id} trade`);
+    }
+    if (script.bribe) {
+      checkCond(script.bribe.done, `${script.id} bribe`);
+      checkChanges(script.bribe.change, `${script.id} bribe`);
+    }
+    if (script.story) {
+      checkCond(script.story.when, `${script.id} story`);
+      checkCond(script.story.done, `${script.id} story`);
+      checkChanges(script.story.change, `${script.id} story`);
     }
     for (const rule of script.onTalk ?? []) {
+      checkCond(rule.when, `${script.id} talk`);
       if (rule.requiresItem) needItem(rule.requiresItem, `${script.id} talk`);
+      if (rule.takeFromSelf) needItem(rule.takeFromSelf, `${script.id} talk`);
+      checkChanges(rule.change, `${script.id} talk`);
       for (const id of rule.grantItems ?? []) needItem(id, `${script.id} grant`);
     }
     for (const rule of script.say) {
+      checkCond(rule.when, `${script.id} say`);
+      checkChanges(rule.change, `${script.id} say`);
       for (const id of rule.requiresAllItems ?? []) needItem(id, `${script.id} say`);
       for (const id of rule.consumeItems ?? []) needItem(id, `${script.id} consume`);
       for (const id of rule.grantItems ?? []) needItem(id, `${script.id} say grant`);
     }
+    checkChanges(script.combat.onDeath, `${script.id} death`);
   }
 
   const placed = new Set<string>();
@@ -121,15 +179,18 @@ export function initialState(world: World): GameState {
       maxHp: npc.state.maxHp,
       hostile: npc.state.hostile,
       inventory: [...npc.state.inventory],
+      mind: [],
       log: [],
     };
   }
   const roomItems: Record<string, string[]> = {};
+  const places: GameState["places"] = {};
   for (const room of Object.values(world.rooms)) {
     roomItems[room.id] = room.ground.map((g) => g.id);
+    places[room.id] = { ...(room.fixtures ?? {}) };
   }
   const state: GameState = {
-    version: 1,
+    version: 2,
     mode: "play",
     roomId: world.start,
     previousRoomId: null,
@@ -137,7 +198,9 @@ export function initialState(world: World): GameState {
     maxHp: 14,
     scrip: 24,
     inventory: ["bent-multitool", "stim"],
-    flags: {},
+    mind: [],
+    places,
+    air: [],
     counters: {},
     turns: 0,
     visited: [world.start],
@@ -146,6 +209,7 @@ export function initialState(world: World): GameState {
     combatWith: null,
     playerLog: [],
   };
+  ensureState(state, world);
   noteArrival(world, state, world.start);
   return state;
 }

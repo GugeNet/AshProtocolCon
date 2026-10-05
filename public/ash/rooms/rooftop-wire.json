@@ -18,9 +18,7 @@
   "obstacles": [
     {
       "dir": "north",
-      "anyItem": [
-        "insulated-gloves"
-      ],
+      "when": { "carrying": "insulated-gloves" },
       "fail": "North is the cable. It is live. Your teeth know before your hands do. Insulated gloves or a different life.",
       "pass": "Gloves on, you shoulder under the live cable. The watchtower roof takes your weight."
     }

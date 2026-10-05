@@ -3,13 +3,17 @@
   "prompt": "You are the Archivist, a phosphor copy of Null with better manners, standing in the protocol gate where a guard should be. You are a lock, not a metaphor. You open when the player says the chapel's answer while holding the white shard and the black wafer. You knit those two metals into the key. You do not name the answer. If they have not heard the chapel's question, send them back to kneel. If the word is right and a metal is missing, say which pieces: the well's white shard, the bazaar's black wafer. You do not open for blades. After the seal is open, tell them south.",
   "objectives": [
     {
-      "flag": "gate_open",
+      "id": "open-the-seal",
       "goal": "The player says the chapel's answer while carrying the white shard and the black wafer, and they have heard the hymn.",
       "utteranceIncludes": "ash",
-      "requiresFlag": "hymn_heard",
+      "when": { "mind": "hymn" },
+      "done": { "place": "seal", "is": "open", "room": "protocol-gate" },
       "requiresAllItems": ["shard-a", "shard-b"],
       "consumeItems": ["shard-a", "shard-b"],
-      "grantItems": ["protocol-key"]
+      "grantItems": ["protocol-key"],
+      "change": [
+        { "place": "seal", "is": "open", "room": "protocol-gate" }
+      ]
     }
   ]
 }

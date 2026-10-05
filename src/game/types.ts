@@ -2,6 +2,28 @@ export type Dir = "north" | "south" | "east" | "west";
 
 export type ItemKind = "junk" | "weapon" | "gear" | "key" | "heal" | "oracle";
 
+/** A fact that is true inside the world. Rules test these. There is no flag bag. */
+export type Fact =
+  | { carrying: string }
+  | { heldBy: string; item: string }
+  | { mind: string }
+  | { recalls: string; npc: string }
+  | { place: string; is: string; room?: string }
+  | { wave: string }
+  | { gone: string };
+
+export type When = { all?: Fact[]; any?: Fact[] };
+
+export type Cond = Fact | When;
+
+export type Change =
+  | { remember: string; line: string }
+  | { recall: string; npc?: string; line: string }
+  | { place: string; is: string; room: string }
+  | { wave: string };
+
+export type Inclination = { id: string; line: string };
+
 export type ItemDef = {
   id: string;
   name: string;
@@ -12,18 +34,20 @@ export type ItemDef = {
   heal?: number;
   text: string;
   useText?: string;
-  sellRequiresFlag?: string;
+  /** Merchants buy this only while this fact holds. Keys and oracles never sell. */
+  sellWhen?: Cond;
 };
 
 export type GroundItem = {
   id: string;
-  hiddenUntilFlag?: string;
+  /** Stays out of "You see" until this fact holds. The item is still in the room. */
+  hiddenUntil?: Cond;
 };
 
 export type Obstacle = {
   dir: Dir;
-  anyFlag?: string[];
-  anyItem?: string[];
+  /** The way is open while this fact holds. */
+  when?: Cond;
   fail: string;
   pass: string;
 };
@@ -31,7 +55,7 @@ export type Obstacle = {
 export type ListenStep = {
   at?: number;
   requiresItem?: string;
-  setFlag?: string;
+  change?: Change[];
   say: string;
 };
 
@@ -41,12 +65,13 @@ export type ListenAction = {
 };
 
 export type SearchAction = {
-  requiresAnyFlags?: string[];
-  requiresAnyItems?: string[];
+  when?: Cond;
+  /** Already searched once this fact holds. */
+  done: Cond;
   fail: string;
-  onceFlag: string;
   grantItems?: string[];
   grantScrip?: number;
+  change?: Change[];
   say: string;
   already: string;
 };
@@ -58,7 +83,9 @@ export type RoomDef = {
   x: number;
   y: number;
   exits: Partial<Record<Dir, string>>;
-  descriptions: { whenFlag?: string; unlessFlag?: string; text: string }[];
+  /** Starting fixture values, such as a chain up or a seal shut. Copied into the tape. */
+  fixtures?: Record<string, string>;
+  descriptions: { when?: Cond; unless?: Cond; text: string }[];
   ground: GroundItem[];
   npcs: string[];
   obstacles: Obstacle[];
@@ -68,53 +95,58 @@ export type RoomDef = {
 };
 
 export type TalkRule = {
-  requiresFlag?: string;
+  when?: Cond;
   requiresItem?: string;
-  setFlag?: string;
+  /** Move this item out of the speaker's pack and into Null's. The rule matches only while they hold it. */
+  takeFromSelf?: string;
+  change?: Change[];
   grantItems?: string[];
-  say: string;
+  gist: string;
 };
 
 export type Topic = {
-  say: string;
-  setFlag?: string;
+  gist: string;
+  change?: Change[];
 };
 
 export type Trade = {
   give: string;
   receive?: string;
-  setFlag?: string;
-  onceFlag?: string;
-  say: string;
+  /** Refuse the trade once this fact holds. */
+  once?: Cond;
+  change?: Change[];
+  gist: string;
 };
 
 export type Bribe = {
   cost: number;
-  setFlag?: string;
+  /** Already paid once this fact holds. */
+  done?: Cond;
   heal?: boolean;
-  say: string;
-  already?: string;
+  change?: Change[];
+  gist: string;
+  alreadyGist?: string;
 };
 
 export type Story = {
-  requiresAnyFlags?: string[];
-  setFlag?: string;
+  when?: Cond;
+  /** Already told once this fact holds. */
+  done?: Cond;
   grantScrip?: number;
-  onceFlag?: string;
-  say: string;
-  elseSay: string;
-  already?: string;
+  change?: Change[];
+  gist: string;
+  elseGist: string;
+  alreadyGist?: string;
 };
 
 export type SayRule = {
   includes: string;
-  requiresFlag?: string;
-  requiresAnyFlags?: string[];
+  when?: Cond;
   requiresAllItems?: string[];
-  setFlag?: string;
+  change?: Change[];
   consumeItems?: string[];
   grantItems?: string[];
-  say: string;
+  gist: string;
 };
 
 export type ShopDef = {
@@ -126,13 +158,14 @@ export type CombatDef = {
   damage: number;
   scrip: number;
   unkillable?: boolean;
-  refuse?: string;
-  onDeathFlags?: string[];
+  refuseGist?: string;
+  /** What their death does to the world. A door opens because the body cannot hold it. */
+  onDeath?: Change[];
   onDeathSay: string;
 };
 
 export type PresenceWhen = {
-  flag: string;
+  when: Cond;
   text: string;
 };
 
@@ -169,13 +202,15 @@ export type NpcRuntime = {
   maxHp: number;
   hostile: boolean;
   inventory: string[];
+  /** First-person lines this person now holds as memory. The id is how rules name the inclination. */
+  mind: Inclination[];
   log: string[];
 };
 
 export type GameMode = "play" | "dead" | "won";
 
 export type GameState = {
-  version: 1;
+  version: 1 | 2;
   mode: GameMode;
   roomId: string;
   previousRoomId: string | null;
@@ -183,7 +218,12 @@ export type GameState = {
   maxHp: number;
   scrip: number;
   inventory: string[];
-  flags: Record<string, boolean>;
+  /** What Null remembers. The hymn, once heard, lives here. */
+  mind: Inclination[];
+  /** Fixture values by room id. A chain down, a seal open, a radio hushed. */
+  places: Record<string, Record<string, string>>;
+  /** Calls loose on the air. The clearance word, once the tower has spoken it. */
+  air: string[];
   counters: Record<string, number>;
   turns: number;
   visited: string[];
@@ -194,6 +234,7 @@ export type GameState = {
 };
 
 export type Consult = {
+  subject?: string;
   activator: string;
   itemId: string;
 };
@@ -224,9 +265,16 @@ export type GameLine = {
 
 export type Effect = "none" | "save" | "load" | "clear" | "exit" | "restart";
 
+export type Beat = {
+  npcId: string;
+  event: string;
+  gist: string;
+};
+
 export type CommandResult = {
   state: GameState;
   lines: GameLine[];
   effect: Effect;
   consult?: Consult;
+  beats?: Beat[];
 };

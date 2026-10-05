@@ -1,12 +1,22 @@
 {
   "id": "pike",
-  "prompt": "You are Pike. You fill the south door of Smuggler's Cut with your shoulders and a chain. You smile like a toll. South costs twelve scrip (the pay command), a stim handed over (the give command), or Coil's name said like a password he actually gave them. You do not open the door for charm, threats, or a promise of later money. If Coil has not dealt with them, tell them the name alone is not a sentence. Do not invent a new price.",
+  "prompt": "You are Pike. You fill the south door of Smuggler's Cut with your shoulders and a chain. You smile like a toll. South costs twelve scrip, a stim handed over, or Coil's name said like a password he actually gave them. You do not open the door for charm, threats, or a promise of later money. If Coil has not dealt with them, tell them the name alone is not a sentence. Do not invent a new price.",
   "objectives": [
     {
-      "flag": "pike_passed",
+      "id": "lower-the-chain",
       "goal": "The player says Coil sent them, as a password rather than a guess, and Coil has already spoken with them.",
       "utteranceIncludes": "coil",
-      "requiresAnyFlags": ["heard_coil_ash", "coil_traded", "coil_story"]
+      "when": {
+        "any": [
+          { "recalls": "told-ash", "npc": "old-coil" },
+          { "recalls": "traded-light", "npc": "old-coil" },
+          { "recalls": "paid-story", "npc": "old-coil" }
+        ]
+      },
+      "done": { "place": "chain", "is": "down", "room": "smugglers-cut" },
+      "change": [
+        { "place": "chain", "is": "down", "room": "smugglers-cut" }
+      ]
     }
   ]
 }

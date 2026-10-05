@@ -10,11 +10,11 @@
   },
   "descriptions": [
     {
-      "unlessFlag": "password_known",
+      "unless": { "wave": "cinder" },
       "text": "A catwalk lashed to a dead cell tower. The wind up here has edges. A jury-rigged radio spits numbers and then swallows them. Cinder Reach looks small enough to pity. West, the orchard glitters. East, a sentry's roof."
     },
     {
-      "whenFlag": "password_known",
+      "when": { "wave": "cinder" },
       "text": "The radio has settled into a satisfied crackle. You have the word. The tower still wants to fall, but not today. West is glass. East is the watchtower."
     }
   ],
@@ -27,7 +27,7 @@
       {
         "at": 1,
         "requiresItem": "optic-lens",
-        "setFlag": "password_known",
+        "change": [{ "wave": "cinder" }],
         "say": "With the lens seated, the static sharpens until it is almost rude. A woman's voice, bored of surviving, says the clearance once: CINDER. Say it to the sentry. Do not embroider it."
       },
       {
@@ -40,7 +40,7 @@
       },
       {
         "at": 3,
-        "setFlag": "password_known",
+        "change": [{ "wave": "cinder" }],
         "say": "The third time the tower gives up. The word is CINDER. Say it plain to the woman with the rifle."
       }
     ]

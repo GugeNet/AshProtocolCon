@@ -9,43 +9,47 @@
   "presence": "Razor Saint paces the shallow end in a coat of reflector tape, two blades, no hurry.",
   "presenceWhen": [
     {
-      "flag": "razor_passed",
+      "when": { "place": "stair", "is": "clear", "room": "combat-pit" },
       "text": "Razor Saint sits on the pool edge counting his teeth, or what you left of the arrangement."
     }
   ],
-  "greeting": "\"Door tax. Twenty-two scrip, or a ceramic knife I can respect, or the other conversation.\" He nods at the floor like a congregation.",
+  "greeting": "Door tax: twenty-two scrip, or a ceramic knife you can respect, or the other conversation, which is a fight.",
   "topics": {
     "tax": {
-      "say": "\"Twenty-two. Or the knife. Killing me also works and is worse for both of our evenings. The grid behind me is not part of my tax. That's municipal.\""
+      "gist": "Twenty-two scrip, or the knife. Killing you also works and is worse for both your evenings. The red grid behind you is municipal, not part of your tax."
     },
     "grid": {
-      "say": "\"Red light, south stair. It eats tapes, not blood. The ghost in the mast hands those out if you bring her a glass eye.\""
+      "gist": "Red light on the south stair. It eats tapes, not blood. The ghost in the mast hands those tapes out if they bring her a glass eye."
     },
     "wafer": {
-      "say": "\"I keep a black wafer in the coat. Juniper sells the twin and calls it a future. I call it ballast. You get mine if I stop being alive.\""
+      "gist": "You keep a black wafer in your coat. Juniper sells its twin and calls it a future. They get yours only if you stop being alive."
     }
   },
   "trades": [
     {
       "give": "knife",
-      "setFlag": "razor_passed",
-      "onceFlag": "razor_knife",
-      "say": "Razor takes the ceramic knife, tests the edge on his thumb, and smiles without humor. \"Tax paid. The stair is yours. The grid is not my problem and not my mercy.\""
+      "once": { "heldBy": "razor-saint", "item": "knife" },
+      "change": [
+        { "place": "stair", "is": "clear", "room": "combat-pit" }
+      ],
+      "gist": "You tested the ceramic knife on your thumb. Tax paid; the stair is theirs. The grid is not your problem and not your mercy."
     }
   ],
   "bribe": {
     "cost": 22,
-    "setFlag": "razor_passed",
-    "say": "He counts twenty-two with insulting slowness, then steps off the stair. \"Go be municipal.\"",
-    "already": "\"Tax is paid. Stop showing me money. I might remember I like it.\""
+    "done": { "place": "stair", "is": "clear", "room": "combat-pit" },
+    "change": [
+      { "place": "stair", "is": "clear", "room": "combat-pit" }
+    ],
+    "gist": "You counted the twenty-two scrip with insulting slowness and stepped off the stair. Tell them to go be municipal.",
+    "alreadyGist": "The tax is paid. Tell them to stop showing you money; you might remember you like it."
   },
   "say": [],
   "combat": {
     "damage": 3,
     "scrip": 16,
-    "onDeathFlags": [
-      "razor_passed",
-      "razor_dead"
+    "onDeath": [
+      { "place": "stair", "is": "clear", "room": "combat-pit" }
     ],
     "onDeathSay": "Razor Saint folds into the shallow end, reflector tape still trying to be glorious. The stair is yours. So is whatever the coat was hiding."
   }

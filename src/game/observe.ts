@@ -1,3 +1,4 @@
+import { ensureState, matches } from "./facts.ts";
 import type { Dir, GameState, Obstacle, World } from "./types.ts";
 
 const PLAYER = "Null";
@@ -27,7 +28,7 @@ export function repairLogs(state: GameState, world?: World): GameState {
     if (!Array.isArray(npc.log)) npc.log = [];
   }
   if (!Array.isArray(state.playerLog)) state.playerLog = [];
-  if (!world) return state;
+  if (!world) return ensureState(state);
   if (!state.roomItems) state.roomItems = {};
 
   const held = placedItems(state);
@@ -40,6 +41,7 @@ export function repairLogs(state: GameState, world?: World): GameState {
       maxHp: npc.state.maxHp,
       hostile: npc.state.hostile,
       inventory,
+      mind: [],
       log: [] as string[],
     };
     state.npcs[id] = runtime;
@@ -54,6 +56,7 @@ export function repairLogs(state: GameState, world?: World): GameState {
       .map((ground) => ground.id)
       .filter((itemId) => claim(held, itemId));
   }
+  ensureState(state, world);
   return state;
 }
 
@@ -125,10 +128,8 @@ export function memoryFileSection(text: string): string {
   return ["MEMORY", "This is your long memory, written while you slept. It is yours.", trimmed].join("\n");
 }
 
-function doorOpen(state: GameState, obstacle: Obstacle): boolean {
-  const flagOk = obstacle.anyFlag?.some((flag) => state.flags[flag]) ?? false;
-  const itemOk = obstacle.anyItem?.some((id) => state.inventory.includes(id)) ?? false;
-  return flagOk || itemOk;
+function doorOpen(state: GameState, obstacle: Obstacle, roomId: string): boolean {
+  return Boolean(obstacle.when) && matches(state, obstacle.when, roomId);
 }
 
 export function blockedDirs(world: World, state: GameState, roomId: string): Dir[] {
@@ -136,7 +137,7 @@ export function blockedDirs(world: World, state: GameState, roomId: string): Dir
   if (!room) return [];
   const dirs: Dir[] = [];
   for (const obstacle of room.obstacles) {
-    if (!doorOpen(state, obstacle) && !dirs.includes(obstacle.dir)) dirs.push(obstacle.dir);
+    if (!doorOpen(state, obstacle, roomId) && !dirs.includes(obstacle.dir)) dirs.push(obstacle.dir);
   }
   return dirs;
 }

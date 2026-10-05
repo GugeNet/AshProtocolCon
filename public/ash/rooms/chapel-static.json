@@ -12,7 +12,7 @@
       "text": "A laundromat that became a church when the machines started answering. Dryers stand open like tabernacles. The radio on the altar is warm. South is the market, louder and less honest."
     },
     {
-      "whenFlag": "hymn_heard",
+      "when": { "place": "radio", "is": "hushed" },
       "text": "The radio has gone to a low hush, like a city breathing in its sleep. The question sits behind your eyes: what remains when the fire is spent. You know better than to be clever about it. South is the market."
     }
   ],
@@ -20,11 +20,20 @@
   "npcs": [
     "sister-static"
   ],
+  "fixtures": {
+    "radio": "warm"
+  },
   "obstacles": [],
   "onListen": {
     "steps": [
       {
-        "setFlag": "hymn_heard",
+        "change": [
+          {
+            "remember": "hymn",
+            "line": "The chapel asked what remains when the fire is spent. The word sits behind my teeth."
+          },
+          { "place": "radio", "is": "hushed", "room": "chapel-static" }
+        ],
         "say": "You kneel because the floor expects it. The dryers turn once, together. A voice — yours, sanded down — asks: what remains when the fire is spent? It does not answer. The word is the answer. It sits behind your teeth like grit. Take it to the copy of you, when you have both metals."
       }
     ]

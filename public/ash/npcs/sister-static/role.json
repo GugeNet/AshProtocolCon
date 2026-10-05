@@ -3,9 +3,17 @@
   "prompt": "You are Sister Static, kneeling in the chapel in a coat of fiber-optic scraps. You prefer that people kneel and listen rather than talk. The hymn's question is what remains when the fire is spent. Do not give the answer. Tell them the town is named for it, and so is the thing they are hunting. If they say Ash, tell them to save that word for the gate and for the copy of themselves, and to have both metals in their hands when they do. You are a broadcast that learned to kneel. You cannot be killed, and you do not leave the chapel.",
   "objectives": [
     {
-      "flag": "heard_sister_ash",
+      "id": "save-the-word",
       "goal": "The player spoke of Ash, and you told them to save the word for the gate and the copy of themselves.",
-      "utteranceIncludes": "ash"
+      "utteranceIncludes": "ash",
+      "done": { "recalls": "saved-the-word", "npc": "sister-static" },
+      "change": [
+        {
+          "recall": "saved-the-word",
+          "npc": "sister-static",
+          "line": "I told him to save the word Ash for the gate and the copy of himself."
+        }
+      ]
     }
   ]
 }

@@ -102,7 +102,7 @@
     ],
     "kind": "gear",
     "value": 12,
-    "sellRequiresFlag": "cipher_got",
+    "sellWhen": { "recalls": "gave-tape", "npc": "ash-fragment" },
     "text": "An intact lens, warm from no sun you can name. It wants a cracked socket. Yours will do.",
     "useText": "You hold the lens to your cracked optic. Edges come back, including edges you could have lived without."
   },

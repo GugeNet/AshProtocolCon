@@ -9,11 +9,11 @@
   },
   "descriptions": [
     {
-      "unlessFlag": "cipher_got",
+      "unless": { "recalls": "gave-tape", "npc": "ash-fragment" },
       "text": "The mast's crow-basket. Wind, copper, and a column of ash trying to be a person. West is the sentry's roof, and from here she looks almost kind."
     },
     {
-      "whenFlag": "cipher_got",
+      "when": { "recalls": "gave-tape", "npc": "ash-fragment" },
       "text": "ASH has gone thin, the way a radio does when the song is over. The cipher tape is a warm line in your pocket. She mouths the same shape: the spire. West is down."
     }
   ],

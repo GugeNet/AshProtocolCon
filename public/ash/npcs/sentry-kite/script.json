@@ -9,41 +9,42 @@
   "presence": "Sentry Kite wears three coats and a rifle older than the ash. She has the tired authority of someone who still believes in doors.",
   "presenceWhen": [
     {
-      "flag": "kite_passed",
+      "when": { "place": "hatch", "is": "open", "room": "watchtower" },
       "text": "Kite keeps the rifle low. \"Don't make me learn your name,\" she says, which is her version of mercy."
     }
   ],
-  "greeting": "\"Clearance. One word. The radio on the walk knows it, if you know how to listen. I know how to shoot.\"",
+  "greeting": "Clearance. One word. The radio on the antenna walk knows it, if they know how to listen. You know how to shoot.",
   "topics": {
     "password": {
-      "say": "\"I don't give the word to people who ask me for the word. That's the whole job. Listen to the tower. Or try your luck, briefly.\""
+      "gist": "You do not give the word to people who ask for the word. That is the whole job. Tell them to listen to the tower."
     },
     "ash": {
-      "say": "\"The thing in the mast uses faces. Don't give it yours for free. A lens helps. It also makes the radio speak in complete sentences.\""
+      "gist": "The thing in the mast uses faces; they should not give it theirs for free. A lens helps. It also makes the radio speak in complete sentences."
     },
     "relay": {
-      "say": "\"East is the nest. You don't go east on charm.\""
+      "gist": "East is the nest. Nobody goes east on charm."
     }
   },
   "trades": [],
   "say": [
     {
       "includes": "cinder",
-      "requiresFlag": "password_known",
-      "setFlag": "kite_passed",
-      "say": "Kite's rifle dips. \"Clearance accepted.\" She looks tired of being correct. \"The nest is east. Don't sell her anything she asks to borrow.\""
+      "when": { "wave": "cinder" },
+      "change": [
+        { "place": "hatch", "is": "open", "room": "watchtower" }
+      ],
+      "gist": "Clearance accepted; you lowered the rifle, tired of being correct. The nest is east. They must not sell her anything she asks to borrow."
     },
     {
       "includes": "cinder",
-      "say": "Kite doesn't blink. \"That's a word, not a clearance. Come back when the tower has actually told you.\""
+      "gist": "That is a word, not a clearance. Tell them to come back when the tower has actually told them."
     }
   ],
   "combat": {
     "damage": 3,
     "scrip": 10,
-    "onDeathFlags": [
-      "kite_passed",
-      "kite_dead"
+    "onDeath": [
+      { "place": "hatch", "is": "open", "room": "watchtower" }
     ],
     "onDeathSay": "Kite goes down still trying to rack the old rifle. The roof is yours, and so is a small shame. East is unguarded."
   }

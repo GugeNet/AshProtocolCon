@@ -1,12 +1,11 @@
 import {
-  applyCommand,
-  commandWaitsOnOracle,
-  findItem,
+  applyAction,
   isCartridgeMeta,
-  isUnheardLine,
-  itemsInRoom,
-  speechUtterance,
+  isSlashed,
+  parseCommand,
+  type Action,
 } from "./engine.ts";
+import { applyChanges, ensureState, matches } from "./facts.ts";
 import {
   blockedDirs,
   englishList,
@@ -14,27 +13,27 @@ import {
   memoryPrompt,
   noteOpenedDoors,
   noteSpeech,
-  remember,
-  repairLogs,
+  quote,
   witness,
   witnessAs,
   witnesses,
 } from "./observe.ts";
 import { memoryUrl, publishJournals } from "./journal.ts";
+import { interpret, type Interpreter } from "./interpret.ts";
+import { askModel } from "./ollama.ts";
 import { consultOracle, type Reading } from "./oracle.ts";
-import type { CommandResult, GameLine, GameState, ItemDef, NpcScript, World } from "./types.ts";
-
-export const OLLAMA_MODEL = "qwen3:4b";
+import type { Beat, Change, CommandResult, Cond, Fact, GameLine, GameState, NpcScript, World } from "./types.ts";
 
 export type NpcObjective = {
-  flag: string;
+  id: string;
   goal: string;
   utteranceIncludes?: string;
-  requiresFlag?: string;
-  requiresAnyFlags?: string[];
+  when?: Cond;
+  done?: Cond;
   requiresAllItems?: string[];
   consumeItems?: string[];
   grantItems?: string[];
+  change?: Change[];
 };
 
 export type NpcRole = {
@@ -68,23 +67,81 @@ function hasItem(state: GameState, id: string): boolean {
   return state.inventory.includes(id);
 }
 
+function asFact(raw: unknown): Fact | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  if (typeof row.carrying === "string") return { carrying: row.carrying };
+  if (typeof row.heldBy === "string" && typeof row.item === "string") return { heldBy: row.heldBy, item: row.item };
+  if (typeof row.recalls === "string" && typeof row.npc === "string") return { recalls: row.recalls, npc: row.npc };
+  if (typeof row.mind === "string") return { mind: row.mind };
+  if (typeof row.place === "string" && typeof row.is === "string") {
+    return { place: row.place, is: row.is, ...(typeof row.room === "string" ? { room: row.room } : {}) };
+  }
+  if (typeof row.wave === "string") return { wave: row.wave };
+  if (typeof row.gone === "string") return { gone: row.gone };
+  return null;
+}
+
+function asCond(raw: unknown): Cond | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const row = raw as Record<string, unknown>;
+  if (Array.isArray(row.all) || Array.isArray(row.any)) {
+    const list = (value: unknown) =>
+      Array.isArray(value)
+        ? value.flatMap((entry) => {
+            const fact = asFact(entry);
+            return fact ? [fact] : [];
+          })
+        : undefined;
+    const all = list(row.all);
+    const any = list(row.any);
+    if (!all?.length && !any?.length) return undefined;
+    return { ...(all?.length ? { all } : {}), ...(any?.length ? { any } : {}) };
+  }
+  return asFact(raw) ?? undefined;
+}
+
+function asChanges(raw: unknown): Change[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const changes: Change[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const row = entry as Record<string, unknown>;
+    if (typeof row.remember === "string" && typeof row.line === "string") {
+      changes.push({ remember: row.remember, line: row.line });
+    } else if (typeof row.recall === "string" && typeof row.line === "string") {
+      changes.push({
+        recall: row.recall,
+        line: row.line,
+        ...(typeof row.npc === "string" ? { npc: row.npc } : {}),
+      });
+    } else if (typeof row.place === "string" && typeof row.is === "string" && typeof row.room === "string") {
+      changes.push({ place: row.place, is: row.is, room: row.room });
+    } else if (typeof row.wave === "string") {
+      changes.push({ wave: row.wave });
+    }
+  }
+  return changes.length ? changes : undefined;
+}
+
 function asObjective(raw: unknown): NpcObjective | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
-  if (typeof row.flag !== "string" || typeof row.goal !== "string") return null;
+  if (typeof row.id !== "string" || typeof row.goal !== "string") return null;
   const strings = (value: unknown) =>
     Array.isArray(value) && value.every((item) => typeof item === "string")
       ? (value as string[])
       : undefined;
   return {
-    flag: row.flag,
+    id: row.id,
     goal: row.goal,
     utteranceIncludes: typeof row.utteranceIncludes === "string" ? row.utteranceIncludes : undefined,
-    requiresFlag: typeof row.requiresFlag === "string" ? row.requiresFlag : undefined,
-    requiresAnyFlags: strings(row.requiresAnyFlags),
+    when: asCond(row.when),
+    done: asCond(row.done),
     requiresAllItems: strings(row.requiresAllItems),
     consumeItems: strings(row.consumeItems),
     grantItems: strings(row.grantItems),
+    change: asChanges(row.change),
   };
 }
 
@@ -101,13 +158,14 @@ export function asRole(id: string, raw: unknown): NpcRole | null {
   return { id, prompt: row.prompt, objectives };
 }
 
+function alreadyMet(state: GameState, objective: NpcObjective): boolean {
+  return Boolean(objective.done) && matches(state, objective.done, state.roomId);
+}
+
 export function evidenceHolds(state: GameState, objective: NpcObjective, utterance: string): boolean {
-  if (state.flags[objective.flag]) return false;
+  if (alreadyMet(state, objective)) return false;
   if (objective.utteranceIncludes && !wordHas(utterance, objective.utteranceIncludes)) return false;
-  if (objective.requiresFlag && !state.flags[objective.requiresFlag]) return false;
-  if (objective.requiresAnyFlags && !objective.requiresAnyFlags.some((flag) => state.flags[flag])) {
-    return false;
-  }
+  if (objective.when && !matches(state, objective.when, state.roomId)) return false;
   if (objective.requiresAllItems && !objective.requiresAllItems.every((id) => hasItem(state, id))) {
     return false;
   }
@@ -122,19 +180,20 @@ export function acceptMarks(
   met: string[],
 ): { state: GameState; flipped: NpcObjective[] } {
   const next = structuredClone(state);
-  const allowed = new Map(role.objectives.map((objective) => [objective.flag, objective]));
+  ensureState(next);
+  const allowed = new Map(role.objectives.map((objective) => [objective.id, objective]));
   const flipped: NpcObjective[] = [];
-  for (const flag of met) {
-    const objective = allowed.get(flag);
+  for (const id of met) {
+    const objective = allowed.get(id);
     if (!objective || !evidenceHolds(next, objective, utterance)) continue;
-    for (const id of objective.consumeItems ?? []) {
-      const index = next.inventory.indexOf(id);
+    for (const itemId of objective.consumeItems ?? []) {
+      const index = next.inventory.indexOf(itemId);
       if (index >= 0) next.inventory.splice(index, 1);
     }
-    next.flags[objective.flag] = true;
-    for (const id of objective.grantItems ?? []) {
-      if (!hasItem(next, id)) next.inventory.push(id);
+    for (const itemId of objective.grantItems ?? []) {
+      if (!hasItem(next, itemId)) next.inventory.push(itemId);
     }
+    applyChanges(next, objective.change);
     flipped.push(objective);
   }
   return { state: next, flipped };
@@ -158,7 +217,7 @@ export function loadRole(id: string): Promise<NpcRole | null> {
 function presenceOf(script: NpcScript, state: GameState): string {
   let text = script.presence;
   for (const alt of script.presenceWhen ?? []) {
-    if (state.flags[alt.flag]) text = alt.text;
+    if (matches(state, alt.when, state.roomId)) text = alt.text;
   }
   return text;
 }
@@ -167,12 +226,12 @@ function objectiveBrief(role: NpcRole, state: GameState, utterance: string): str
   if (!role.objectives.length) return "You have no objectives. met must be an empty list.";
   return role.objectives
     .map((objective) => {
-      const open = state.flags[objective.flag] ? "ALREADY MET" : "OPEN";
+      const open = alreadyMet(state, objective) ? "ALREADY MET" : "OPEN";
       const evidence =
         open === "OPEN" && evidenceHolds(state, objective, utterance)
           ? "EVIDENCE HOLDS"
           : "EVIDENCE DOES NOT HOLD";
-      return `- ${objective.flag} — ${open} — ${evidence}. ${objective.goal}`;
+      return `- ${objective.id} — ${open} — ${evidence}. ${objective.goal}`;
     })
     .join("\n");
 }
@@ -183,50 +242,7 @@ export function loadMemory(name: string): Promise<string> {
     .catch(() => "");
 }
 
-function systemPrompt(
-  role: NpcRole,
-  script: NpcScript,
-  roomName: string,
-  mood: string,
-  state: GameState,
-  utterance: string,
-  prior: string[],
-  memory: string,
-): string {
-  const runtime = state.npcs[script.id];
-  const parts = [
-    `You are ${script.name} in the text game Ash Protocol. Stay in that life. One to three sentences.`,
-    "The say field is spoken dialogue only. Do not prefix your name. Do not mention JSON, flags, objectives, or that you are a model.",
-    runtime?.hostile
-      ? "You are hostile. Threaten. Do not help. met must be an empty list."
-      : "",
-    `Mood: ${mood}.`,
-    "",
-    "ROLE",
-    role.prompt.trim(),
-    "",
-    `ROOM: ${roomName}.`,
-    presenceOf(script, state),
-    "",
-    memoryFileSection(memory),
-    "",
-    memoryPrompt(runtime?.log),
-    "",
-    "OBJECTIVES",
-    objectiveBrief(role, state, utterance),
-    "",
-    "If a line says EVIDENCE HOLDS and the objective is OPEN, put that flag id in met.",
-    "If a line says EVIDENCE DOES NOT HOLD, or the objective is ALREADY MET, do not put that flag in met.",
-    "Never put a flag in met that is not listed.",
-  ];
-  if (prior.length) {
-    parts.push("", "The cartridge already told the player:", ...prior.map((text) => `- ${text}`));
-    parts.push("Do not repeat that. Leave say empty if you would only repeat it.");
-  }
-  return parts.filter((part) => part !== "").join("\n");
-}
-
-type AgentReply = { say: string; met: string[] };
+export type AgentReply = { say: string; met: string[] };
 
 function cleanSay(text: string): string {
   let say = text.replace(/\s+/g, " ").trim();
@@ -251,357 +267,223 @@ function parseReply(content: string): AgentReply {
   const row = parsed as Record<string, unknown>;
   const say = typeof row.say === "string" ? cleanSay(row.say) : "";
   const met = Array.isArray(row.met)
-    ? row.met.filter((flag): flag is string => typeof flag === "string")
+    ? row.met.filter((id): id is string => typeof id === "string")
     : [];
   return { say, met };
-}
-
-async function askSubagent(
-  role: NpcRole,
-  world: World,
-  state: GameState,
-  utterance: string,
-  prior: string[],
-  memory: string,
-  signal: AbortSignal,
-): Promise<AgentReply> {
-  const npc = world.npcs[role.id];
-  const script = npc.script;
-  const room = world.rooms[state.roomId];
-  const response = await fetch("/ollama/api/chat", {
-    method: "POST",
-    signal,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      think: false,
-      keep_alive: "10m",
-      format: REPLY_SCHEMA,
-      options: { temperature: 0.6, num_predict: 180 },
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt(role, script, room.name, npc.state.mood, state, utterance, prior, memory),
-        },
-        { role: "user", content: `Null says: ${utterance}` },
-      ],
-    }),
-  });
-  if (!response.ok) throw new Error(`Ollama answered ${response.status}`);
-  const data = (await response.json()) as { message?: { content?: string } };
-  return parseReply(data.message?.content ?? "");
 }
 
 function itemName(world: World, id: string): string {
   return world.items[id]?.name ?? id;
 }
 
-export async function hearRoom(
+export type VoiceAsk = {
+  npcId: string;
+  role: NpcRole | null;
+  utterance?: string;
+  beats: Beat[];
+  memory: string;
+};
+
+export type Voice = (
   world: World,
   state: GameState,
-  utterance: string,
-  prior: string[] = [],
+  ask: VoiceAsk,
+  signal?: AbortSignal,
+) => Promise<AgentReply>;
+
+export type HarnessIo = {
+  interpret: Interpreter;
+  voice: Voice;
+  role: (id: string) => Promise<NpcRole | null>;
+  memory: (name: string) => Promise<string>;
+};
+
+function distinct(texts: string[]): string[] {
+  return [...new Set(texts)];
+}
+
+function mindSection(lines: string[]): string {
+  if (!lines.length) return "";
+  return [
+    "WHAT YOU HOLD IN MIND",
+    "These inclinations are already yours. They are memory.",
+    ...lines.map((entry) => `- ${entry}`),
+  ].join("\n");
+}
+
+export function voicePrompt(world: World, state: GameState, ask: VoiceAsk): string {
+  const npc = world.npcs[ask.npcId];
+  const script = npc.script;
+  const runtime = state.npcs[ask.npcId];
+  const room = world.rooms[state.roomId];
+  const parts = [
+    `You are ${script.name} in the text game Ash Protocol. Stay in that life. One to three sentences.`,
+    "The say field is spoken dialogue only. Do not prefix your name. Do not narrate actions. Do not mention JSON, objectives, or that you are a model.",
+    runtime?.hostile ? "You are hostile. Threaten. Do not help. met must be an empty list." : "",
+    `Mood: ${npc.state.mood}.`,
+    "",
+    "ROLE",
+    ask.role?.prompt.trim() ?? "",
+    "",
+    `ROOM: ${room.name}.`,
+    presenceOf(script, state),
+    "",
+    memoryFileSection(ask.memory),
+    "",
+    mindSection(runtime?.mind?.map((item) => item.line) ?? []),
+    "",
+    memoryPrompt(runtime?.log),
+  ];
+  if (ask.utterance !== undefined && ask.role) {
+    parts.push(
+      "",
+      "OBJECTIVES",
+      objectiveBrief(ask.role, state, ask.utterance),
+      "",
+      "If a line says EVIDENCE HOLDS and the objective is OPEN, put that objective id in met.",
+      "If a line says EVIDENCE DOES NOT HOLD, or the objective is ALREADY MET, do not put that id in met.",
+      "Never put an id in met that is not listed.",
+    );
+  } else {
+    parts.push("", "met must be an empty list.");
+  }
+  if (ask.beats.length) {
+    parts.push(
+      "",
+      "WHAT JUST HAPPENED",
+      ...distinct(ask.beats.map((beat) => `- ${beat.event}`)),
+      "",
+      "YOU MUST GET ACROSS",
+      ...distinct(ask.beats.map((beat) => `- ${beat.gist}`)),
+      "",
+      "Those lines are notes about you: in them, you are you and they are Null.",
+      "Speak to Null directly, as yourself. Never read the notes aloud or repeat them as instructions.",
+      "Convey every fact under YOU MUST GET ACROSS, in your own voice. Never contradict it.",
+      "Do not add prices, items, or places that are not in it or in your ROLE.",
+    );
+  }
+  return parts.filter((part) => part !== "").join("\n");
+}
+
+function voiceCue(ask: VoiceAsk): string {
+  const gists = distinct(ask.beats.map((beat) => beat.gist)).join(" ");
+  const brief = gists ? `\n\nIn your reply, get across: ${gists}` : "";
+  if (ask.utterance !== undefined) return `Null says: ${ask.utterance}${brief}`;
+  const events = distinct(ask.beats.map((beat) => beat.event)).join(" ");
+  return `${events}${brief}`;
+}
+
+export const speak: Voice = async (world, state, ask, signal) => {
+  const content = await askModel(
+    REPLY_SCHEMA,
+    0.6,
+    180,
+    voicePrompt(world, state, ask),
+    voiceCue(ask),
+    signal,
+  );
+  return parseReply(content);
+};
+
+export const defaultIo: HarnessIo = {
+  interpret,
+  voice: speak,
+  role: loadRole,
+  memory: loadMemory,
+};
+
+const STATIC = "Is Ollama running qwen3:4b?";
+
+export async function voiceRoom(
+  world: World,
+  state: GameState,
+  heard: { utterance?: string; beats: Beat[] },
+  io: HarnessIo,
   signal?: AbortSignal,
 ): Promise<HearResult> {
-  const room = world.rooms[state.roomId];
   const roomId = state.roomId;
-  const wasBlocked = blockedDirs(world, state, roomId);
+  const room = world.rooms[roomId];
+  const speech = heard.utterance !== undefined;
   const present = room.npcs.filter((id) => state.npcs[id]?.alive);
-  if (!present.length) {
-    return {
-      state,
-      lines: [line("body", "Your words sit in the ash. Nobody picks them up.")],
-    };
-  }
-
-  const loaded = await Promise.all(
-    present.map(async (id) => {
-      const script = world.npcs[id].script;
-      const [role, memory] = await Promise.all([loadRole(id), loadMemory(script.name)]);
-      return { id, role, memory };
-    }),
+  const speakers = present.filter(
+    (id) => speech || heard.beats.some((beat) => beat.npcId === id),
   );
+  if (!speakers.length) return { state, lines: [] };
+  const wasBlocked = blockedDirs(world, state, roomId);
+
   const replies = await Promise.all(
-    loaded.map(async (agent) => {
-      if (!agent.role) {
-        return { id: agent.id, role: null, say: "", met: [] as string[], error: "no role" };
-      }
+    speakers.map(async (id) => {
+      const beats = heard.beats.filter((beat) => beat.npcId === id);
       try {
-        const reply = await askSubagent(
-          agent.role,
+        const [role, memory] = await Promise.all([
+          io.role(id),
+          io.memory(world.npcs[id].script.name),
+        ]);
+        const reply = await io.voice(
           world,
           state,
-          utterance,
-          prior,
-          agent.memory,
-          signal ?? new AbortController().signal,
+          { npcId: id, role, utterance: heard.utterance, beats, memory },
+          signal,
         );
-        return { id: agent.id, role: agent.role, ...reply, error: "" };
+        return { id, role, beats, ...reply, error: "" };
       } catch (error) {
         if (signal?.aborted) throw error;
         const message = error instanceof Error ? error.message : "silent";
-        return { id: agent.id, role: agent.role, say: "", met: [] as string[], error: message };
+        return { id, role: null, beats, say: "", met: [] as string[], error: message };
       }
     }),
   );
 
+  if (!heard.beats.length && replies.every((reply) => reply.error)) {
+    return { state, lines: [line("warn", `The cartridge cannot hear the room. ${STATIC}`)] };
+  }
+
   let next = state;
   const lines: GameLine[] = [];
-  let failures = 0;
   for (const reply of replies) {
     const script = world.npcs[reply.id].script;
     if (reply.say) {
       lines.push(line("speech", `${script.name}: ${reply.say}`));
-      noteSpeech(world, next, next.roomId, reply.id, reply.say);
+      noteSpeech(world, next, roomId, reply.id, reply.say);
+    } else if (reply.beats.length) {
+      lines.push(
+        reply.error
+          ? line("warn", `${script.name}'s reply is lost in static. ${STATIC}`)
+          : line("body", `${script.name} says nothing.`),
+      );
     }
-    if (reply.role && reply.met.length && !state.npcs[reply.id]?.hostile) {
-      const applied = acceptMarks(next, reply.role, utterance, reply.met);
-      next = applied.state;
-      for (const objective of applied.flipped) {
-        lines.push(
-          line("sys", `${script.name} meets an objective: ${objective.flag.replaceAll("_", " ")}.`),
+    if (!speech || !reply.role || !reply.met.length || state.npcs[reply.id]?.hostile) continue;
+    const applied = acceptMarks(next, reply.role, heard.utterance ?? "", reply.met);
+    next = applied.state;
+    for (const objective of applied.flipped) {
+      lines.push(
+        line("sys", `${script.name} meets an objective: ${objective.id.replaceAll("-", " ")}.`),
+      );
+      if (objective.consumeItems?.length) {
+        const handed = englishList(objective.consumeItems.map((id) => itemName(world, id)));
+        witness(next, witnesses(world, next), `Null hands over ${handed}.`);
+      }
+      if (objective.grantItems?.length) {
+        const names = objective.grantItems.map((id) => itemName(world, id));
+        const goods = englishList(names);
+        witnessAs(
+          next,
+          witnesses(world, next),
+          reply.id,
+          `I give Null ${goods}.`,
+          `${script.name} gives Null ${goods}.`,
         );
-        if (objective.consumeItems?.length) {
-          const handed = englishList(objective.consumeItems.map((id) => itemName(world, id)));
-          witness(next, witnesses(world, next), `Null hands over ${handed}.`);
-        }
-        if (objective.grantItems?.length) {
-          const names = objective.grantItems.map((id) => itemName(world, id));
-          const goods = englishList(names);
-          witnessAs(
-            next,
-            witnesses(world, next),
-            reply.id,
-            `I give Null ${goods}.`,
-            `${script.name} gives Null ${goods}.`,
-          );
-          lines.push(line("good", `You receive ${names.join(", ")}.`));
-        }
+        lines.push(line("good", `You receive ${names.join(", ")}.`));
       }
     }
-    if (reply.error && !reply.say) failures += 1;
   }
-  if (failures === replies.length) {
-    return {
-      state,
-      lines: [line("warn", "The cartridge cannot hear the room. Is Ollama running qwen3:4b?")],
-    };
-  }
-  if (!lines.length) {
-    lines.push(line("body", "The room lets the words settle."));
-  }
+  if (speech && !lines.length) lines.push(line("body", "The room lets the words settle."));
   noteOpenedDoors(world, next, roomId, wasBlocked);
+  const still = blockedDirs(world, next, roomId);
+  for (const dir of wasBlocked) {
+    if (!still.includes(dir)) lines.push(line("good", `The way ${dir} is open.`));
+  }
   return { state: next, lines };
-}
-
-const ACQUIRE = /\b(?:take|get|grab|pick up|pocket|loot)\b/i;
-const LEADING =
-  /^(?:please\s+)?(?:take|get|grab|pick up|pocket|loot)\s+(.+)$/i;
-const PRONOUN = /^(?:it|them|one|those|these|that|this)$/;
-const NO_TAKE = "none";
-
-export type TakeReader = (
-  world: World,
-  state: GameState,
-  utterance: string,
-  signal?: AbortSignal,
-) => Promise<string | null>;
-
-type Acquire =
-  | { kind: "id"; id: string }
-  | { kind: "ask" }
-  | { kind: "miss" }
-  | { kind: "no" };
-
-function mentionsItem(utterance: string, item: ItemDef): boolean {
-  const words = new Set(
-    utterance.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2),
-  );
-  const labels = [item.id.replaceAll("-", " "), item.name, ...item.aliases].join(" ");
-  return labels
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .some((word) => word.length > 2 && words.has(word));
-}
-
-function classifyAcquire(world: World, state: GameState, input: string): Acquire {
-  const present = itemsInRoom(world, state);
-  const ids = present.map((item) => item.id);
-  const squashed = input.trim().replace(/\s+/g, " ");
-  const leading = LEADING.exec(squashed);
-  if (leading) {
-    const found = findItem(world, leading[1], ids);
-    if (found) return { kind: "id", id: found.id };
-    const carried = findItem(
-      world,
-      leading[1],
-      oraclesInHands(world, state).map((item) => item.id),
-    );
-    if (carried) return { kind: "id", id: carried.id };
-    const bare = leading[1]
-      .toLowerCase()
-      .replace(/[.,!?;:]+$/g, "")
-      .replace(/^(?:the|a|an|some|my|your)\s+/, "")
-      .trim();
-    if (PRONOUN.test(bare)) return { kind: "ask" };
-    return { kind: "miss" };
-  }
-  if (!ACQUIRE.test(squashed)) return { kind: "no" };
-  const named = present.filter((item) => mentionsItem(squashed, item));
-  if (named.length === 1) return { kind: "id", id: named[0].id };
-  if (named.length > 1) return { kind: "ask" };
-  const carried = oraclesInHands(world, state).filter((item) => mentionsItem(squashed, item));
-  if (carried.length === 1) return { kind: "id", id: carried[0].id };
-  return { kind: "no" };
-}
-
-function oracleHolder(world: World, state: GameState, itemId: string): string | null {
-  const item = world.items[itemId];
-  if (!item || item.kind !== "oracle") return null;
-  const room = world.rooms[state.roomId];
-  for (const npcId of room?.npcs ?? []) {
-    const npc = state.npcs[npcId];
-    if (!npc?.alive) continue;
-    if (npc.inventory.includes(itemId)) return npcId;
-  }
-  return null;
-}
-
-function oraclesInHands(world: World, state: GameState): ItemDef[] {
-  const room = world.rooms[state.roomId];
-  const items: ItemDef[] = [];
-  for (const npcId of room?.npcs ?? []) {
-    const npc = state.npcs[npcId];
-    if (!npc?.alive) continue;
-    for (const id of npc.inventory) {
-      const item = world.items[id];
-      if (item?.kind === "oracle" && !items.some((held) => held.id === item.id)) items.push(item);
-    }
-  }
-  return items;
-}
-
-export function comeIntoPossession(
-  world: World,
-  state: GameState,
-  itemId: string,
-): { ok: boolean; state: GameState; lines: GameLine[] } {
-  repairLogs(state, world);
-  const roomId = state.roomId;
-  const wasBlocked = blockedDirs(world, state, roomId);
-  const item = world.items[itemId];
-  const onGround = itemsInRoom(world, state).some((entry) => entry.id === itemId);
-  const holder = onGround ? null : oracleHolder(world, state, itemId);
-  if (!item || (!onGround && !holder)) {
-    const name = item?.name ?? itemId;
-    return {
-      ok: false,
-      state,
-      lines: [line("warn", `There is no ${name} here you can take.`)],
-    };
-  }
-  if (onGround) {
-    const pile = state.roomItems[state.roomId];
-    const index = pile?.indexOf(item.id) ?? -1;
-    if (pile && index >= 0) pile.splice(index, 1);
-    witness(state, witnesses(world, state), `Null takes ${item.name}.`);
-    remember(state, `I take the ${item.name}.`);
-  } else if (holder) {
-    const pack = state.npcs[holder].inventory;
-    const held = pack.indexOf(item.id);
-    if (held >= 0) pack.splice(held, 1);
-    const name = world.npcs[holder].script.name;
-    witnessAs(
-      state,
-      witnesses(world, state),
-      holder,
-      `Null takes ${item.name} from me.`,
-      `Null takes ${item.name} from ${name}.`,
-    );
-    remember(state, `I take the ${item.name} from ${name}.`);
-  }
-  state.inventory.push(item.id);
-  noteOpenedDoors(world, state, roomId, wasBlocked);
-  return { ok: true, state, lines: [line("good", `Taken: ${item.name}.`)] };
-}
-
-function possessed(world: World, prev: GameState, itemId: string): CommandResult {
-  const state = structuredClone(prev);
-  state.turns += 1;
-  const owned = comeIntoPossession(world, state, itemId);
-  return { state: owned.state, lines: owned.lines, effect: "none" };
-}
-
-function takeSchema(ids: string[]) {
-  return {
-    type: "object",
-    properties: {
-      take: { type: "string", enum: [NO_TAKE, ...ids] },
-    },
-    required: ["take"],
-  };
-}
-
-function parseTake(content: string, ids: string[]): string | null {
-  try {
-    const row = JSON.parse(content) as { take?: unknown };
-    if (typeof row.take !== "string" || row.take === NO_TAKE) return null;
-    return ids.includes(row.take) ? row.take : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function readPossession(
-  world: World,
-  state: GameState,
-  utterance: string,
-  signal?: AbortSignal,
-): Promise<string | null> {
-  const present = itemsInRoom(world, state);
-  if (!present.length) return null;
-  const ids = present.map((item) => item.id);
-  const room = world.rooms[state.roomId];
-  const catalog = present
-    .map((item) => `${item.id} — ${item.name}; also called ${item.aliases.join(", ")}`)
-    .join("\n");
-  const response = await fetch("/ollama/api/chat", {
-    method: "POST",
-    signal,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      think: false,
-      keep_alive: "10m",
-      format: takeSchema(ids),
-      options: { temperature: 0, num_predict: 24 },
-      messages: [
-        {
-          role: "system",
-          content: [
-            "You are the physics of Ash Protocol, not a character.",
-            "Decide whether the player comes into possession of one item that is here.",
-            "Do not speak. Do not invent ids.",
-            `ROOM: ${room.name}.`,
-            "Items on the ground:",
-            catalog,
-            "",
-            "If the player is taking one of those items, set take to its id.",
-            'Articles such as "the", "a", and "an" do not change the item.',
-            '"take clean filter" and "take the clean filter" are the same act.',
-            `If they are not taking an item, set take to ${NO_TAKE}.`,
-            "Looking, moving, talking, giving, dropping, buying, selling, and attacking are not taking.",
-          ].join("\n"),
-        },
-        { role: "user", content: utterance },
-      ],
-    }),
-  });
-  if (!response.ok) throw new Error(`Ollama answered ${response.status}`);
-  const data = (await response.json()) as { message?: { content?: string } };
-  return parseTake(data.message?.content ?? "", ids);
 }
 
 const WHISPER_SCHEMA = {
@@ -657,34 +539,14 @@ async function readHypnos(
   };
 }
 
-async function askModel(
-  schema: unknown,
-  temperature: number,
-  limit: number,
-  system: string,
-  user: string,
-  signal?: AbortSignal,
-): Promise<string> {
-  const response = await fetch("/ollama/api/chat", {
-    method: "POST",
-    signal,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      think: false,
-      keep_alive: "10m",
-      format: schema,
-      options: { temperature, num_predict: limit },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!response.ok) throw new Error(`Ollama answered ${response.status}`);
-  const data = (await response.json()) as { message?: { content?: string } };
-  return data.message?.content ?? "";
+const ABOUT_THE_BALL = /\b(fortune|crystal ball|the glass|whispers)\b/i;
+
+export function readable(log: string): string {
+  return log
+    .split(/\r?\n/)
+    .filter((entry) => entry.trim() && !ABOUT_THE_BALL.test(entry))
+    .join("\n")
+    .trim();
 }
 
 function askBall(
@@ -705,7 +567,7 @@ function askBall(
       reading.memory.trim() || "(none)",
       "",
       "LOG",
-      reading.log.trim() || "(nothing)",
+      readable(reading.log) || "(nothing)",
     ].join("\n"),
     signal,
   );
@@ -724,35 +586,79 @@ async function askCryptic(
   return askModel(
     CRYPTIC_SCHEMA,
     0.7,
-    60,
+    160,
     [
-      `You are ${script.name} in the text game Ash Protocol. Stay in that life. One sentence.`,
+      `You are ${script.name} in the text game Ash Protocol. Stay in that life. One or two sentences.`,
       "The say field is spoken dialogue only. Do not prefix your name.",
       "",
       "ROLE",
       role.prompt.trim(),
       "",
-      "You just heard a crystal ball whisper, and nobody else heard it.",
-      "Say one cryptic sentence about it.",
-      "Do not quote the whisper. Do not name the person it was about.",
-      "Do not say that a ball, a glass, or a whisper told you.",
+      "Null asked you to read his fortune. You looked into your crystal ball, and it just whispered about him. He heard it too.",
+      "Tell Null, in your own voice, what you make of it and what it may mean for him.",
+      "Do not repeat the whisper word for word. Do not invent places, people, prices, or items that are not in it or in your ROLE.",
     ].join("\n"),
-    `Whisper: ${whisper}`,
+    `The ball whispered about Null: ${quote(whisper)}\n\nNow tell Null what you make of it.`,
     signal,
   );
 }
 
-async function finishEngine(
+const UNREAD =
+  "The cartridge could not read that. Is Ollama running qwen3:4b? Slash commands (/help) still work.";
+
+export function inputWaits(state: GameState, input: string): boolean {
+  return state.mode === "play" && !isCartridgeMeta(input);
+}
+
+export async function playInput(
   world: World,
   prev: GameState,
   input: string,
   signal?: AbortSignal,
+  io: Partial<HarnessIo> = {},
 ): Promise<CommandResult> {
-  const result = applyCommand(world, prev, input);
-  if (result.state.mode !== "play") return result;
+  const use: HarnessIo = { ...defaultIo, ...io };
+  let actions: Action[] | null;
+  if (prev.mode !== "play" || isSlashed(input)) {
+    actions = [parseCommand(input)];
+  } else {
+    try {
+      actions = await use.interpret(world, prev, input, signal);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      actions = null;
+    }
+    if (!actions?.length) return { state: prev, lines: [line("warn", UNREAD)], effect: "none" };
+  }
+
+  let state = prev;
+  const lines: GameLine[] = [];
+  let effect: CommandResult["effect"] = "none";
+  for (const action of actions) {
+    const roomId = state.roomId;
+    const step = await runAction(world, state, action, use, signal);
+    state = step.state;
+    lines.push(...step.lines);
+    effect = step.effect;
+    if (state.mode !== "play" || state.roomId !== roomId || effect !== "none") break;
+  }
+  return { state, lines, effect };
+}
+
+async function runAction(
+  world: World,
+  prev: GameState,
+  action: Action,
+  io: HarnessIo,
+  signal?: AbortSignal,
+): Promise<CommandResult> {
+  const result = applyAction(world, prev, action);
+  if (result.state.mode !== "play") {
+    return { state: result.state, lines: result.lines, effect: result.effect };
+  }
   if (result.consult) {
     const prompt = await loadOraclePrompt(result.consult.itemId);
-    return consultOracle(
+    const read = await consultOracle(
       world,
       result,
       {
@@ -763,66 +669,14 @@ async function finishEngine(
       },
       signal,
     );
+    return { state: read.state, lines: read.lines, effect: read.effect };
   }
-  const utterance = speechUtterance(input);
-  if (!utterance) return result;
-  const prior = result.lines.filter((entry) => entry.kind === "speech").map((entry) => entry.text);
-  const shown = result.lines.filter((entry) => !isUnheardLine(entry));
-  const heard = await hearRoom(world, result.state, utterance, prior, signal);
-  return { state: heard.state, lines: [...shown, ...heard.lines], effect: result.effect };
-}
-
-export function inputWaits(world: World, state: GameState, input: string): boolean {
-  if (state.mode !== "play" || isCartridgeMeta(input)) return false;
-  if (commandWaitsOnOracle(world, state, input)) return true;
-  const acquire = classifyAcquire(world, state, input);
-  if (acquire.kind === "ask") return true;
-  return acquire.kind === "no" && speechUtterance(input) !== null;
-}
-
-export async function playInput(
-  world: World,
-  prev: GameState,
-  input: string,
-  signal?: AbortSignal,
-  readTake: TakeReader = readPossession,
-): Promise<CommandResult> {
-  if (prev.mode !== "play" || isCartridgeMeta(input)) {
-    return finishEngine(world, prev, input, signal);
-  }
-
-  const acquire = classifyAcquire(world, prev, input);
-  if (acquire.kind === "id") return possessed(world, prev, acquire.id);
-
-  if (acquire.kind === "ask") {
-    let modelId: string | null = null;
-    try {
-      modelId = await readTake(world, prev, input, signal);
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      modelId = null;
-    }
-    if (modelId && itemsInRoom(world, prev).some((item) => item.id === modelId)) {
-      return possessed(world, prev, modelId);
-    }
-    const state = structuredClone(prev);
-    state.turns += 1;
-    return {
-      state,
-      lines: [line("warn", "There is nothing here by that name you can take.")],
-      effect: "none",
-    };
-  }
-
-  if (acquire.kind === "miss") {
-    const state = structuredClone(prev);
-    state.turns += 1;
-    return {
-      state,
-      lines: [line("warn", "There is nothing here by that name you can take.")],
-      effect: "none",
-    };
-  }
-
-  return finishEngine(world, prev, input, signal);
+  const heard = await voiceRoom(
+    world,
+    result.state,
+    { utterance: action.type === "say" ? action.text : undefined, beats: result.beats ?? [] },
+    io,
+    signal,
+  );
+  return { state: heard.state, lines: [...result.lines, ...heard.lines], effect: result.effect };
 }

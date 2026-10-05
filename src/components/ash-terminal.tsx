@@ -10,7 +10,7 @@ import type { GameLine, GameState, World } from "../game/types";
 type Row = GameLine & { id: number };
 
 const SLASH = [
-  { cmd: "/help", blurb: "verbs and console commands" },
+  { cmd: "/help", blurb: "how to play, slash commands" },
   { cmd: "/look", blurb: "reprint the room" },
   { cmd: "/inv", blurb: "what you carry" },
   { cmd: "/status", blurb: "hp, scrip, weapon" },
@@ -114,7 +114,7 @@ export function AshTerminal() {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw) as GameState;
-      if (parsed.version !== 1 || !parsed.npcs || !current.rooms[parsed.roomId]) return null;
+      if ((parsed.version !== 1 && parsed.version !== 2) || !parsed.npcs || !current.rooms[parsed.roomId]) return null;
       return repairLogs(parsed, current);
     } catch {
       return null;
@@ -207,7 +207,7 @@ export function AshTerminal() {
     if (!isCartridgeMeta(text)) {
       const controller = new AbortController();
       listenAbort.current = controller;
-      if (inputWaits(world, current, text)) setHearing(true);
+      if (inputWaits(current, text)) setHearing(true);
       setLines((prev) => [...prev, ...stamp([echo])]);
       try {
         const result = await playInput(world, current, text, controller.signal);
@@ -448,10 +448,10 @@ export function AshTerminal() {
         <div className="mb-3 grid grid-cols-4 gap-2">
           {(
             [
-              ["N", "go north"],
-              ["W", "go west"],
-              ["E", "go east"],
-              ["S", "go south"],
+              ["N", "/go north"],
+              ["W", "/go west"],
+              ["E", "/go east"],
+              ["S", "/go south"],
             ] as const
           ).map(([label, command]) => (
             <button
@@ -469,7 +469,7 @@ export function AshTerminal() {
           <button
             type="button"
             className="min-h-12 border border-line text-lg disabled:opacity-40"
-            onClick={() => submit("look")}
+            onClick={() => submit("/look")}
             disabled={!live}
           >
             LOOK
@@ -477,7 +477,7 @@ export function AshTerminal() {
           <button
             type="button"
             className="min-h-12 border border-line text-lg disabled:opacity-40"
-            onClick={() => submit("search")}
+            onClick={() => submit("/search")}
             disabled={!live}
           >
             SEARCH
@@ -488,7 +488,7 @@ export function AshTerminal() {
             onClick={() => {
               if (!live) return;
               if (alive.length === 1) {
-                submit(`talk ${world.npcs[alive[0]].script.aliases[0]}`);
+                submit(`/talk ${world.npcs[alive[0]].script.aliases[0]}`);
               } else {
                 setDraft("talk ");
                 inputRef.current?.focus();
@@ -530,7 +530,7 @@ export function AshTerminal() {
             spellCheck={false}
             enterKeyHint="send"
             placeholder={
-              hearing ? "the room is listening — commands still work" : live ? "command or /help" : "mounting cartridge"
+              hearing ? "the room is listening — you can still type" : live ? "what does Null do? (/help)" : "mounting cartridge"
             }
             className="min-h-12 w-full bg-transparent text-2xl text-phosphor outline-none placeholder:text-dim disabled:opacity-60"
           />

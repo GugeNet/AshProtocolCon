@@ -5,5 +5,7 @@
   "maxHp": 20,
   "hostile": false,
   "mood": "signal",
-  "inventory": []
+  "inventory": [
+    "cipher-tape"
+  ]
 }

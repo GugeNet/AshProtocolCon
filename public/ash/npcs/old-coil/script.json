@@ -9,24 +9,30 @@
   "presence": "Old Coil sits in a bolted deckchair, optic dark, hands busy with nothing.",
   "presenceWhen": [
     {
-      "flag": "coil_traded",
+      "when": { "recalls": "traded-light", "npc": "old-coil" },
       "text": "Old Coil turns the empty tin in his hands and looks, for him, almost kind."
     }
   ],
-  "greeting": "\"You selling, or drifting?\" Coil's voice is dry as the inside of a fuse.",
+  "greeting": "Ask whether they are selling, or just drifting.",
   "topics": {
     "ash": {
-      "say": "\"ASH ain't dead. She's coughing in the chapel radio, north of the market. Kneel. Listen. Don't get poetic at her.\"",
-      "setFlag": "heard_coil_ash"
+      "gist": "ASH is not dead. She is coughing in the chapel radio, north of the market. Kneel. Listen. Don't get poetic at her.",
+      "change": [
+        {
+          "recall": "told-ash",
+          "npc": "old-coil",
+          "line": "I told him ASH is coughing in the chapel radio, north of the market."
+        }
+      ]
     },
     "trade": {
-      "say": "\"Stim for a glowcapsule. The well eats light, and you'll want some that isn't yours. Fair?\""
+      "gist": "Your glowcapsule for a stim. The well eats light, and they will want some that is not theirs. Fair?"
     },
     "spire": {
-      "say": "\"The Spire still has a chair and a slot. People who go up there come back as weather. You look like weather.\""
+      "gist": "The Spire still has a chair and a slot. People who go up there come back as weather. They look like weather."
     },
     "village": {
-      "say": "\"Cinder Reach trades because the alternative is honesty. Mare at the market. Hex in the bus. Pike if you enjoy doors with men in them.\""
+      "gist": "Cinder Reach trades because the alternative is honesty. Mare at the market. Hex in the bus. Pike on the south door, if they enjoy doors with men in them."
     }
   },
   "onTalk": [],
@@ -34,24 +40,41 @@
     {
       "give": "stim",
       "receive": "glowcapsule",
-      "setFlag": "coil_traded",
-      "onceFlag": "coil_traded",
-      "say": "Coil pockets the stim and presses a glowcapsule into your palm. \"Don't drop it in the well. The well eats light, and then it eats the hand.\""
+      "change": [
+        {
+          "recall": "traded-light",
+          "npc": "old-coil",
+          "line": "I took his stim and gave him the glowcapsule. The tin is empty of light."
+        }
+      ],
+      "gist": "You pocketed the stim and pressed the glowcapsule into their palm. Warn them not to drop it in the well: the well eats light, and then the hand."
     }
   ],
   "story": {
-    "setFlag": "coil_story",
+    "done": { "recalls": "paid-story", "npc": "old-coil" },
+    "change": [
+      {
+        "recall": "paid-story",
+        "npc": "old-coil",
+        "line": "I paid him six scrip for the story of the radio using his voice."
+      }
+    ],
     "grantScrip": 6,
-    "onceFlag": "coil_story",
-    "say": "You tell him about the voice in the radio that used your mouth. Coil laughs once, a dry click, and tucks six scrip into your sleeve. \"For the telling. Don't spend it on kindness.\"",
-    "elseSay": "",
-    "already": "\"I already paid for that story. Go spend it before the market changes its mind.\""
+    "gist": "Their story of the radio using their voice made you laugh once, dry. You tucked six scrip into their sleeve for the telling. Tell them not to spend it on kindness.",
+    "elseGist": "",
+    "alreadyGist": "You already paid for that story. Tell them to go spend it before the market changes its mind."
   },
   "say": [
     {
       "includes": "ash",
-      "setFlag": "heard_coil_ash",
-      "say": "Coil nods at the north. \"Chapel. Kneel. The question is the whole sermon.\""
+      "change": [
+        {
+          "recall": "told-ash",
+          "npc": "old-coil",
+          "line": "I told him ASH is coughing in the chapel radio, north of the market."
+        }
+      ],
+      "gist": "Point them north, to the chapel. Kneel. The question is the whole sermon."
     }
   ],
   "combat": {

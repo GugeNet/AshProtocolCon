@@ -10,26 +10,32 @@
   },
   "descriptions": [
     {
-      "unlessFlag": "shard_a_found",
+      "unless": { "place": "cache", "is": "empty" },
       "text": "A shaft where a fountain used to be. Ash falls upward, which is wrong. Your light dies a few feet from your hand. North climbs to the smugglers. East, something metal is cheering for blood."
     },
     {
-      "whenFlag": "shard_a_found",
+      "when": { "place": "cache", "is": "empty" },
       "text": "The well has given up its white shard and gone back to being a hole. Your footprints circle the rim. North, Pike's corridor. East, the pit."
     }
   ],
   "ground": [],
   "npcs": [],
+  "fixtures": {
+    "cache": "buried"
+  },
   "obstacles": [],
   "onSearch": {
-    "requiresAnyFlags": [
-      "hymn_heard"
-    ],
-    "requiresAnyItems": [
-      "glowcapsule"
+    "when": {
+      "any": [
+        { "mind": "hymn" },
+        { "carrying": "glowcapsule" }
+      ]
+    },
+    "done": { "place": "cache", "is": "empty" },
+    "change": [
+      { "place": "cache", "is": "empty", "room": "ash-well" }
     ],
     "fail": "Your hands find ash and nothing with edges. You need the glowcapsule, or the hymn still burning behind your eyes.",
-    "onceFlag": "shard_a_found",
     "grantItems": [
       "shard-a"
     ],

@@ -61,6 +61,26 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function formatTool(entry: unknown): string {
+  const fn = asRecord(asRecord(entry)?.function);
+  const name = typeof fn?.name === "string" ? fn.name : "?";
+  const params = asRecord(asRecord(fn?.parameters)?.properties) ?? {};
+  const args = Object.entries(params).map(([key, value]) => {
+    const values = asRecord(value)?.enum;
+    return Array.isArray(values) ? `${key}: ${values.join(" | ")}` : key;
+  });
+  return `  ${name}(${args.join(", ")})`;
+}
+
+function formatCalls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => {
+    const fn = asRecord(asRecord(entry)?.function);
+    const name = typeof fn?.name === "string" ? fn.name : "?";
+    return `→ ${name}(${JSON.stringify(fn?.arguments ?? {})})`;
+  });
+}
+
 function formatRequest(body: Uint8Array): string {
   const raw = textOf(body);
   try {
@@ -70,12 +90,16 @@ function formatRequest(body: Uint8Array): string {
     if (row.think != null) lines.push(`think ${String(row.think)}`);
     if (row.options) lines.push(`options ${JSON.stringify(row.options)}`);
     if (row.format) lines.push(`format ${JSON.stringify(row.format)}`);
+    const tools = Array.isArray(row.tools) ? row.tools : [];
+    if (tools.length) lines.push("tools", ...tools.map(formatTool));
     const messages = Array.isArray(row.messages) ? row.messages : [];
     for (const entry of messages) {
       const message = asRecord(entry);
       const role = typeof message?.role === "string" ? message.role : "message";
       const content = typeof message?.content === "string" ? message.content : "";
-      lines.push("", `--- ${role} ---`, content);
+      const named = typeof message?.tool_name === "string" ? ` ${message.tool_name}` : "";
+      lines.push("", `--- ${role}${named} ---`, content);
+      lines.push(...formatCalls(message?.tool_calls));
     }
     if (!messages.length) lines.push("", raw);
     return lines.join("\n");
@@ -95,7 +119,11 @@ function formatReply(raw: string): string {
       (typeof row.thinking === "string" && row.thinking) ||
       "";
     if (thinking) parts.push(`--- thinking ---\n${thinking}`);
-    if (typeof message?.content === "string") parts.push(`--- reply ---\n${message.content}`);
+    if (typeof message?.content === "string" && message.content) {
+      parts.push(`--- reply ---\n${message.content}`);
+    }
+    const calls = formatCalls(message?.tool_calls);
+    if (calls.length) parts.push(`--- tool calls ---\n${calls.join("\n")}`);
     if (typeof row.error === "string") parts.push(`--- error ---\n${row.error}`);
     return parts.length ? parts.join("\n\n") : raw;
   } catch {

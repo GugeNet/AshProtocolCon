@@ -7,19 +7,19 @@
     "juniper quinn"
   ],
   "presence": "Juniper Quinn sells futures from a counter of black glass. Her smile reaches everything but her eyes.",
-  "greeting": "\"If it has a price, it is already on the slate. If it doesn't, you can't afford the conversation.\"",
+  "greeting": "If it has a price, it is already on the slate. If it does not, they cannot afford the conversation.",
   "topics": {
     "wafer": {
-      "say": "\"Black wafer. Eighteen. It is half a key and a whole alibi. The other half is white and sulking in a well, if the rumors still pay rent.\""
+      "gist": "Black wafer, eighteen scrip. Half a key and a whole alibi. The other half is white and sulking in a well, if the rumors still pay rent."
     },
     "gloves": {
-      "say": "\"Insulated. Fourteen. The rooftop cable is not a metaphor. There is also a pair under a drone, if you prefer violence to retail.\""
+      "gist": "Insulated gloves, fourteen scrip. The rooftop cable is not a metaphor. There is also a pair under a drone, if they prefer violence to retail."
     },
     "spire": {
-      "say": "\"I sell the piece. I do not sell the ending. Endings ruin repeat business.\""
+      "gist": "You sell the piece, not the ending. Endings ruin repeat business."
     },
     "ash": {
-      "say": "\"ASH is a customer who never paid her last invoice. If you are working for her, charge double. She can afford a city.\""
+      "gist": "ASH is a customer who never paid her last invoice. If they work for her, charge double; she can afford a city."
     }
   },
   "trades": [],

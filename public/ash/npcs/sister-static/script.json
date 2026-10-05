@@ -9,35 +9,41 @@
   "presence": "Sister Static kneels in a coat of fiber-optic scraps, mouth moving with a sound you cannot spend yet.",
   "presenceWhen": [
     {
-      "flag": "hymn_heard",
+      "when": { "mind": "hymn" },
       "text": "Sister Static watches you as if you passed a test she resents."
     }
   ],
-  "greeting": "\"The machines are in session. Speak, or kneel. I prefer kneel.\"",
+  "greeting": "The machines are in session. They may speak or kneel; you prefer kneel.",
   "topics": {
     "hymn": {
-      "say": "\"Don't ask me the question. Listen. When it asks what remains, don't be clever. The town is named for the answer, and so is the thing you are hunting.\""
+      "gist": "Don't ask you the question; listen. When it asks what remains, don't be clever. The town is named for the answer, and so is the thing they are hunting."
     },
     "ash": {
-      "say": "\"Save the word for the gate, for the copy of you. He is proud and literal. I am only the hallway.\"",
-      "setFlag": "heard_sister_ash"
+      "gist": "Save the word for the gate, for the copy of themselves. He is proud and literal. You are only the hallway.",
+      "change": [
+        {
+          "recall": "saved-the-word",
+          "npc": "sister-static",
+          "line": "I told him to save the word Ash for the gate and the copy of himself."
+        }
+      ]
     },
     "spire": {
-      "say": "\"The Spire is a lung. We have been holding our breath since the flare. If you slot the key, some of us will hate the daylight. Bring it anyway.\""
+      "gist": "The Spire is a lung; the town has held its breath since the flare. If they slot the key, some will hate the daylight. Bring it anyway."
     }
   },
   "trades": [],
   "say": [
     {
       "includes": "ash",
-      "say": "Sister Static almost smiles. \"Correct, and early. Say it where the seal can hear you. Have both metals in your hands when you do.\""
+      "gist": "Correct, and early. Say it where the seal can hear. Have both metals in hand when they do."
     }
   ],
   "combat": {
     "damage": 0,
     "scrip": 0,
     "unkillable": true,
-    "refuse": "Your hand passes through Sister Static. She is a broadcast that learned to kneel. The radio hiss rises, unimpressed.",
+    "refuseGist": "Their hand passes through you; you are a broadcast that learned to kneel.",
     "onDeathSay": ""
   }
 }

@@ -9,59 +9,66 @@
   "presence": "The Ferryman is a tall absence in a yellow slicker, pole in both hands, face hidden by a reflector mask.",
   "presenceWhen": [
     {
-      "flag": "ferryman_paid",
+      "when": { "place": "skiff", "is": "loose", "room": "black-canal" },
       "text": "The Ferryman waits in the skiff, in case you lie and need to cross again."
     }
   ],
-  "greeting": "The mask tilts. A voice like wet rope: \"Four scrip. Or a token. Or a story the chapel still believes. I do not row for errands.\"",
+  "greeting": "Your price: four scrip, or a ferry token, or a story the chapel still believes. You do not row for errands.",
   "topics": {
     "price": {
-      "say": "\"Four. Or the hymn, told like you knelt for it. I collect last myths. I have enough receipts.\""
+      "gist": "Four scrip. Or the chapel hymn, told like they knelt for it. You collect last myths; you have enough receipts."
     },
     "ash": {
-      "say": "\"If you restore the lung, my canal becomes a street again. I will hate you politely. I will still row you tonight.\""
+      "gist": "If they restore the city's lung, your canal becomes a street again. You will hate them politely, and still row them tonight."
     },
     "spire": {
-      "say": "\"East is not the Spire. East is a woman who sells pieces of it. The Spire is under the pit, which is a joke the city is still telling.\""
+      "gist": "East of you is not the Spire; east is a woman who sells pieces of it. The Spire is under the pit, a joke the city is still telling."
     }
   },
   "trades": [
     {
       "give": "ferry-token",
-      "setFlag": "ferryman_paid",
-      "onceFlag": "ferryman_paid",
-      "say": "The token disappears into the slicker. The skiff thumps the pier, suddenly willing. \"East.\""
+      "once": { "place": "skiff", "is": "loose", "room": "black-canal" },
+      "change": [
+        { "place": "skiff", "is": "loose", "room": "black-canal" }
+      ],
+      "gist": "You pocketed the ferry token. The skiff is suddenly willing. Tell them: east."
     }
   ],
   "bribe": {
     "cost": 4,
-    "setFlag": "ferryman_paid",
-    "say": "Four scrip. The pole finds the bottom as if it had been waiting for an excuse. The far pier is yours.",
-    "already": "\"The skiff is already yours. Stop paying me. It makes the myth worse.\""
+    "done": { "place": "skiff", "is": "loose", "room": "black-canal" },
+    "change": [
+      { "place": "skiff", "is": "loose", "room": "black-canal" }
+    ],
+    "gist": "You took the four scrip. The pole finds the bottom; the far pier to the east is theirs.",
+    "alreadyGist": "The skiff is already theirs. Tell them to stop paying you; it makes the myth worse."
   },
   "story": {
-    "requiresAnyFlags": [
-      "hymn_heard"
+    "when": { "mind": "hymn" },
+    "done": { "place": "skiff", "is": "loose", "room": "black-canal" },
+    "change": [
+      { "place": "skiff", "is": "loose", "room": "black-canal" }
     ],
-    "setFlag": "ferryman_paid",
-    "onceFlag": "ferryman_paid",
-    "say": "You tell the hymn the way the dryers told it. The mask tilts, and for a second there is a person inside it. \"Cross,\" he says. He does not ask for scrip.",
-    "elseSay": "\"Stories I have. Myths I don't. Kneel in the chapel until it trusts you, then come waste my time properly.\"",
-    "already": "\"You already paid in myth. The east is still there.\""
+    "gist": "Their telling of the hymn moves you; for a moment there is a person inside the mask. Tell them to cross. You do not ask for scrip.",
+    "elseGist": "You have stories, not myths. Tell them to kneel in the chapel until it trusts them, then come back and waste your time properly.",
+    "alreadyGist": "They already paid in myth. The east is still there."
   },
   "say": [
     {
       "includes": "ash",
-      "requiresFlag": "hymn_heard",
-      "setFlag": "ferryman_paid",
-      "say": "The Ferryman repeats it, softer: ash. \"That will do.\" The skiff answers the pole."
+      "when": { "mind": "hymn" },
+      "change": [
+        { "place": "skiff", "is": "loose", "room": "black-canal" }
+      ],
+      "gist": "They said the word. Repeat it softer, ash, and accept it. The skiff will cross east."
     }
   ],
   "combat": {
     "damage": 0,
     "scrip": 0,
     "unkillable": true,
-    "refuse": "The pole turns your blow aside with the boredom of a lock. There is less man under the slicker than you budgeted for.",
+    "refuseGist": "Your pole turns the blow aside with the boredom of a lock. You cannot be fought.",
     "onDeathSay": ""
   }
 }

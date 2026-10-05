@@ -9,46 +9,47 @@
   "presence": "The Archivist is you, rendered in phosphor and manners, standing where a guard should be.",
   "presenceWhen": [
     {
-      "flag": "gate_open",
+      "when": { "place": "seal", "is": "open", "room": "protocol-gate" },
       "text": "The Archivist bows, already unthreading. \"South,\" he says, like a courtesy."
     }
   ],
   "greeting": "",
   "topics": {
     "riddle": {
-      "say": "\"What remains when the fire is spent? Say it plain. Have the white shard and the black wafer with you when you do. I am not a metaphor. I am a lock.\""
+      "gist": "Pose the chapel's question: what remains when the fire is spent? They must say the answer plainly while holding the white shard and the black wafer. You are a lock, not a metaphor."
     },
     "key": {
-      "say": "\"Two metals. I knit them. You do not get to knit them in a market and call it destiny.\""
+      "gist": "The key is two metals, and you are the one who knits them. They do not get to knit them in a market and call it destiny."
     },
     "name": {
-      "say": "\"Null. I kept the version of us that files things. You kept the version that walks. This is a fair division until the stair.\""
+      "gist": "Call them Null. You are the copy that kept the filing; they kept the walking. A fair division until the stair."
     }
   },
   "onTalk": [
     {
-      "requiresFlag": "gate_open",
-      "say": "\"South,\" says the copy of you. \"Try not to waste the daylight. Some of the village will.\""
+      "when": { "place": "seal", "is": "open", "room": "protocol-gate" },
+      "gist": "The seal is open. Tell them to go south and not waste the daylight."
     },
     {
-      "say": "The Archivist studies your hands. \"What remains when the fire is spent? Say it. If you have not heard the question yet, the chapel is north of a life you already walked.\""
+      "gist": "You study their hands. Ask them: what remains when the fire is spent? Tell them to say it. If they have not heard the question yet, the chapel is where it is asked."
     }
   ],
   "trades": [],
   "say": [
     {
       "includes": "ash",
-      "requiresFlag": "gate_open",
-      "say": "\"You already said it. The seal is a stair now. South, Null.\""
+      "when": { "place": "seal", "is": "open", "room": "protocol-gate" },
+      "gist": "They already said it. The seal is a stair now. Tell them south."
     },
     {
       "includes": "ash",
-      "requiresFlag": "hymn_heard",
-      "requiresAllItems": [
-        "shard-a",
-        "shard-b"
-      ],
-      "setFlag": "gate_open",
+      "when": {
+        "all": [
+          { "mind": "hymn" },
+          { "carrying": "shard-a" },
+          { "carrying": "shard-b" }
+        ]
+      },
       "consumeItems": [
         "shard-a",
         "shard-b"
@@ -56,23 +57,26 @@
       "grantItems": [
         "protocol-key"
       ],
-      "say": "The Archivist repeats it, gently, in your voice. Ash. The two pieces leave your hands and knit — white shard, black wafer — into a key the size of a fingerbone. The seal opens like a tram bell remembering its job."
+      "change": [
+        { "place": "seal", "is": "open", "room": "protocol-gate" }
+      ],
+      "gist": "You just repeated the word gently, in their own voice, and knit the white shard and the black wafer into a key the size of a fingerbone. The seal is open. Tell them south is open."
     },
     {
       "includes": "ash",
-      "requiresFlag": "hymn_heard",
-      "say": "\"The word is right. The metal is not. The well's white shard. The bazaar's black wafer. Then ask me again, with both.\""
+      "when": { "mind": "hymn" },
+      "gist": "The word is right, but a metal is missing. They need the well's white shard and the bazaar's black wafer, both in hand, then say it again."
     },
     {
       "includes": "ash",
-      "say": "\"You are guessing.\" The copy looks almost sorry. \"Kneel in the chapel until the question is yours. Then bring me the word and the two metals.\""
+      "gist": "They are guessing. Tell them to kneel in the chapel until the question is theirs, then bring you the word and the two metals."
     }
   ],
   "combat": {
     "damage": 0,
     "scrip": 0,
     "unkillable": true,
-    "refuse": "The blade passes through a filing system that learned your posture. The Archivist does not even ripple. \"I open for language. Not for this.\"",
+    "refuseGist": "The blade passes through you without a ripple. You open for language, not for this.",
     "onDeathSay": ""
   }
 }

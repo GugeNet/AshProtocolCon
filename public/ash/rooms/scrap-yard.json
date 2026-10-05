@@ -11,18 +11,18 @@
   },
   "descriptions": [
     {
-      "unlessFlag": "drone_dead",
+      "unless": { "gone": "drone-mite" },
       "text": "Mountains of chassis. A crushed ambulance. The paths are goat-tracks of mud and oil. West returns to the market. East, a bus full of medicine. North, glass that grew like fruit."
     },
     {
-      "whenFlag": "drone_dead",
+      "when": { "gone": "drone-mite" },
       "text": "The yard feels larger without the red lens circling it. The drone is a sparking bowl in the mud. West, market. East, the clinic. North, the orchard. If the chassis hid anything, it is hiding worse now."
     }
   ],
   "ground": [
     {
       "id": "insulated-gloves",
-      "hiddenUntilFlag": "drone_dead"
+      "hiddenUntil": { "gone": "drone-mite" }
     }
   ],
   "npcs": [

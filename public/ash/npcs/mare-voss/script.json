@@ -7,22 +7,22 @@
     "mare voss"
   ],
   "presence": "Mare Voss runs the center table from a wheelchair armored in road signs. She misses nothing, including you.",
-  "greeting": "\"Scrip on the table, hands where I can invoice them. What.\"",
+  "greeting": "Scrip on the table, hands where you can invoice them. Ask what they want.",
   "topics": {
     "ash": {
-      "say": "\"If you're hearing your own voice in the wires, you're late. Half the village is. The other half sells the wires.\""
+      "gist": "If they are hearing their own voice in the wires, they are late. Half the village is. The other half sells the wires."
     },
     "breather": {
-      "say": "\"Underpass will kill you pretty. I sell the ugly that keeps you ugly and alive. Sixteen.\""
+      "gist": "The underpass will kill them prettily. You sell the ugly breather that keeps them alive: sixteen scrip."
     },
     "knife": {
-      "say": "\"Ceramic. Ten scrip. Pike and the pit both respect an edge more than a speech.\""
+      "gist": "Ceramic knife, ten scrip. Pike and the pit both respect an edge more than a speech."
     },
     "village": {
-      "say": "\"Dock, market, chapel, yard, clinic. South of Pike is where the map starts lying. I don't discount lies.\""
+      "gist": "Dock, market, chapel, yard, clinic. South of Pike is where the map starts lying. You do not discount lies."
     },
     "spire": {
-      "say": "\"You want the Spire, you want two metals and a word. I sell neither word nor metal. I sell the walk.\""
+      "gist": "The Spire wants two metals and a word. You sell neither. You sell the walk."
     }
   },
   "trades": [],

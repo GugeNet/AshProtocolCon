@@ -35,7 +35,6 @@ const FOG = "The glass fogs and keeps its secret.";
 const HYPNOS = "The cartridge cannot read a memory. Hypnos did not answer.";
 const QUIET = "The cartridge cannot hear the glass. Is Ollama running qwen3:4b?";
 const NO_PROMPT = "The crystal ball has no voice to read with.";
-const FALLBACK = "Something you did is still in the room, and it did not come in with you.";
 
 export function peopleBeside(world: World, state: GameState, activator: string): string[] {
   const room = world.rooms[state.roomId];
@@ -67,21 +66,30 @@ export function cleanWhisper(content: string): string {
     text = text.slice(1, -1).trim();
   }
   if (!text) return "";
-  if (/\b(we are writing|you are a crystal|thinking process)\b/i.test(text)) return "";
+  if (/\b(we are writing|you are a crystal|thinking process|the ball whispered about|now tell null)\b/i.test(text)) return "";
   if (text.length > 400) text = text.slice(0, 400).trim();
   return text;
+}
+
+function cutOffField(text: string, field: "whisper" | "say"): string | null {
+  const match = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`).exec(text);
+  if (!match) return null;
+  const value = match[1].replace(/\\"/g, '"').replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
+  const sentences = value.match(/^.*[.!?…](?=\s|$)/)?.[0];
+  return sentences ?? value;
 }
 
 function fieldFromJson(text: string, field: "whisper" | "say"): string | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
+  if (start < 0) return null;
+  if (end <= start) return cutOffField(text, field);
   try {
     const row = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
     const value = row[field];
     return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : null;
   } catch {
-    return null;
+    return cutOffField(text, field);
   }
 }
 
@@ -95,10 +103,8 @@ function pickOne(ids: string[]): string {
 
 function applyWhisper(state: GameState, activator: string, whisper: string): void {
   const heard = `The crystal ball whispers ${quote(whisper)}`;
-  if (activator === PLAYER_ID) {
-    remember(state, heard);
-    return;
-  }
+  remember(state, heard);
+  if (activator === PLAYER_ID) return;
   const npc = state.npcs[activator];
   if (!npc) return;
   if (!Array.isArray(npc.log)) npc.log = [];
@@ -130,13 +136,20 @@ export async function consultOracle(
     };
   }
 
-  const subject = (io.pick ?? pickOne)(beside);
+  const subject =
+    consult.subject && beside.includes(consult.subject) ? consult.subject : (io.pick ?? pickOne)(beside);
   let reading: Reading;
   try {
     reading = await io.read(subject, signal);
   } catch (error) {
     if (signal?.aborted) throw error;
     return { state, lines: [...result.lines, line("warn", HYPNOS)], effect: result.effect };
+  }
+  if (consult.activator !== PLAYER_ID) {
+    // The fortune is about the subject's life, not about the visit to the reader.
+    const reader = personName(world, consult.activator);
+    const kept = reading.log.split(/\r?\n/).filter((entry) => !entry.includes(reader));
+    reading = { ...reading, log: kept.join("\n") };
   }
   if (!reading.memory.trim() && !reading.log.trim()) {
     return {
@@ -167,13 +180,8 @@ export async function consultOracle(
   }
 
   applyWhisper(state, consult.activator, whisper);
-  if (consult.activator === PLAYER_ID) {
-    return {
-      state,
-      lines: [...result.lines, line("speech", `The crystal ball whispers, ${quote(whisper)}`)],
-      effect: result.effect,
-    };
-  }
+  const shown = [...result.lines, line("speech", `The crystal ball whispers, ${quote(whisper)}`)];
+  if (consult.activator === PLAYER_ID) return { state, lines: shown, effect: result.effect };
 
   let cryptic = "";
   try {
@@ -183,10 +191,10 @@ export async function consultOracle(
     if (signal?.aborted) throw error;
     cryptic = "";
   }
-  if (!cryptic) cryptic = FALLBACK;
+  if (!cryptic) return { state, lines: shown, effect: result.effect };
   return {
     state,
-    lines: [...result.lines, spoken(world, state, consult.activator, cryptic)],
+    lines: [...shown, spoken(world, state, consult.activator, cryptic)],
     effect: result.effect,
   };
 }

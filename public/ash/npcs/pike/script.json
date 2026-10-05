@@ -7,58 +7,66 @@
   "presence": "Pike fills the south door with his shoulders and a length of chain he uses as a rosary. He smiles like a toll.",
   "presenceWhen": [
     {
-      "flag": "pike_passed",
+      "when": { "place": "chain", "is": "down", "room": "smugglers-cut" },
       "text": "Pike has moved the chain. He nods like you are a receipt he already filed."
     }
   ],
-  "greeting": "\"South is a product. You can pay, you can bleed, or you can say the sentence Coil gives people. Those are the flavors.\"",
+  "greeting": "South is a product. They can pay, they can bleed, or they can say the sentence Coil gives people.",
   "topics": {
     "south": {
-      "say": "\"Twelve scrip. Or a stim, I'm shaking and I hate that you can see it. Or Coil's name, said like he sent you and not like you guessed.\""
+      "gist": "Twelve scrip. Or a stim; your hand is shaking and you hate that they can see it. Or Coil's name, said like he sent them and not like they guessed."
     },
     "coil": {
-      "say": "\"Old man on the dock. If he told you about the chapel, you're not a tourist. Say it like a password, not a eulogy.\""
+      "gist": "The old man on the dock. If he told them about the chapel, they are not a tourist. Say it like a password, not a eulogy."
     },
     "ash": {
-      "say": "\"I don't traffic in ghosts. I traffic in doors. South door. Focus.\""
+      "gist": "You do not traffic in ghosts. You traffic in doors. The south door. Focus."
     }
   },
   "trades": [
     {
       "give": "stim",
-      "setFlag": "pike_passed",
-      "onceFlag": "pike_stim",
-      "say": "Pike palms the stim like a communion he doesn't deserve. The shake leaves his hand. \"Walk. Don't touch the tins.\""
+      "once": { "heldBy": "pike", "item": "stim" },
+      "change": [
+        { "place": "chain", "is": "down", "room": "smugglers-cut" }
+      ],
+      "gist": "You palmed the stim, and the shake left your hand. Tell them to walk south and not touch the tins."
     }
   ],
   "bribe": {
     "cost": 12,
-    "setFlag": "pike_passed",
-    "say": "Pike counts twelve like it might be counterfeit, then stands aside. \"South. Try not to become a moral lesson.\"",
-    "already": "\"You already bought the door. Use it before I invent a second price.\""
+    "done": { "place": "chain", "is": "down", "room": "smugglers-cut" },
+    "change": [
+      { "place": "chain", "is": "down", "room": "smugglers-cut" }
+    ],
+    "gist": "You counted the twelve scrip like it might be counterfeit and stood aside. South is open. Tell them not to become a moral lesson.",
+    "alreadyGist": "They already bought the door. Tell them to use it before you invent a second price."
   },
   "say": [
     {
       "includes": "coil",
-      "requiresAnyFlags": [
-        "heard_coil_ash",
-        "coil_traded",
-        "coil_story"
+      "when": {
+        "any": [
+          { "recalls": "told-ash", "npc": "old-coil" },
+          { "recalls": "traded-light", "npc": "old-coil" },
+          { "recalls": "paid-story", "npc": "old-coil" }
+        ]
+      },
+      "change": [
+        { "place": "chain", "is": "down", "room": "smugglers-cut" }
       ],
-      "setFlag": "pike_passed",
-      "say": "Pike snorts. \"Coil still collecting strays? Walk. Don't touch the tins.\" The south door becomes a door."
+      "gist": "Coil is still collecting strays, and you find that funny. You let them through: the south door is open. Tell them not to touch the tins."
     },
     {
       "includes": "coil",
-      "say": "Pike squints. \"Coil didn't send you. Coil sends people with a sentence about the chapel, not a name you overheard.\""
+      "gist": "Coil did not send them. Coil sends people with a sentence about the chapel, not a name they overheard."
     }
   ],
   "combat": {
     "damage": 3,
     "scrip": 14,
-    "onDeathFlags": [
-      "pike_passed",
-      "pike_dead"
+    "onDeath": [
+      { "place": "chain", "is": "down", "room": "smugglers-cut" }
     ],
     "onDeathSay": "Pike hits the crates on the way down. The chain rings once, liturgical and done. South is open because corpses are bad at tolls."
   }

@@ -10,11 +10,11 @@
   },
   "descriptions": [
     {
-      "unlessFlag": "gate_open",
+      "unless": { "place": "seal", "is": "open" },
       "text": "A round chamber. The floor is a seal: a hand, a flame, an empty ring. North is the vault. South is a white stair that is not a stair yet."
     },
     {
-      "whenFlag": "gate_open",
+      "when": { "place": "seal", "is": "open" },
       "text": "The seal has unlocked with a sound like a tram bell. The copy of you is already fading at the edges. South is a white stair and the last room in the cartridge. North still pretends you can leave."
     }
   ],
@@ -22,12 +22,13 @@
   "npcs": [
     "archivist"
   ],
+  "fixtures": {
+    "seal": "shut"
+  },
   "obstacles": [
     {
       "dir": "south",
-      "anyFlag": [
-        "gate_open"
-      ],
+      "when": { "place": "seal", "is": "open" },
       "fail": "The seal does not care about urgency. The copy of you waits for the word and for both metals.",
       "pass": "You step onto the white stair. The cartridge has very little left to say, and it intends to say it."
     }

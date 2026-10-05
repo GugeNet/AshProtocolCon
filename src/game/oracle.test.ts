@@ -81,7 +81,7 @@ function io(partial: Partial<OracleIo> & Pick<OracleIo, "read">): OracleIo {
   };
 }
 
-test("the ball reads someone else, and the witch keeps the whisper private", async () => {
+test("asking the witch for a fortune reads Null, and he hears the ball", async () => {
   const { world, state } = booth();
   assert.deepEqual(peopleBeside(world, state, "madam-wick"), [PLAYER_ID, "mare-voss"]);
   assert.deepEqual(peopleBeside(world, state, PLAYER_ID), ["madam-wick", "mare-voss"]);
@@ -89,14 +89,16 @@ test("the ball reads someone else, and the witch keeps the whisper private", asy
   const asked = applyCommand(world, state, "ask wick for a fortune");
   assert.equal(asked.consult?.activator, "madam-wick");
   assert.equal(asked.consult?.itemId, "crystal-ball");
-  let reads = 0;
+  assert.equal(asked.consult?.subject, PLAYER_ID);
+  const reads: string[] = [];
+  let heardByWick = "";
   const told = await consultOracle(
     world,
     asked,
     io({
-      pick: () => PLAYER_ID,
-      read: async () => {
-        reads += 1;
+      pick: () => "mare-voss",
+      read: async (id) => {
+        reads.push(id);
         return { name: "Null", memory: "I went to the dock.", log: "I wait." };
       },
       whisper: async (_prompt, subject, reading: Reading) => {
@@ -104,17 +106,21 @@ test("the ball reads someone else, and the witch keeps the whisper private", asy
         assert.match(reading.memory, /dock/);
         return "He waited on the dock.";
       },
+      cryptic: async (_world, _state, _npcId, whisper) => {
+        heardByWick = whisper;
+        return "Docks keep people, receipt. Move before it keeps you.";
+      },
     }),
   );
-  assert.equal(reads, 1);
+  assert.deepEqual(reads, [PLAYER_ID]);
+  assert.equal(heardByWick, "He waited on the dock.");
   const shown = told.lines.map((entry) => entry.text).join("\n");
-  assert.match(shown, /Your boots remember a room/);
-  assert.equal(shown.includes("dock"), false);
-  assert.equal(shown.includes("waited"), false);
+  assert.match(shown, /The crystal ball whispers, "He waited on the dock\."/);
+  assert.match(shown, /Madam Wick: Docks keep people, receipt/);
   assert.ok(told.state.npcs["madam-wick"].log.some((entry) => entry.includes("He waited on the dock.")));
-  assert.equal(told.state.playerLog.some((entry) => entry.includes("waited on the dock")), false);
+  assert.ok(told.state.playerLog.some((entry) => entry.includes("He waited on the dock.")));
   assert.equal(told.state.npcs["mare-voss"].log.some((entry) => entry.includes("waited on the dock")), false);
-  assert.ok(told.state.npcs["mare-voss"].log.some((entry) => entry.includes("Your boots remember a room")));
+  assert.ok(told.state.npcs["mare-voss"].log.some((entry) => entry.includes("Docks keep people")));
   assert.ok(told.state.playerLog.some((entry) => entry.includes("I talk to Madam Wick about fortune.")));
 });
 
@@ -183,7 +189,14 @@ test("the glass stays dark when nobody else is there or nothing is written", asy
 
 test("Null can take the ball, and a fortune needs it in her hands", async () => {
   const { world, state } = booth();
-  const taken = await playInput(world, state, "take the crystal ball");
+  const taken = await playInput(world, state, "/take the crystal ball", undefined, {
+    interpret: async () => {
+      throw new Error("slash commands do not need the model");
+    },
+    role: async () => null,
+    memory: async () => "",
+    voice: async () => ({ say: "", met: [] }),
+  });
   assert.ok(taken.state.inventory.includes("crystal-ball"));
   assert.equal(taken.state.npcs["madam-wick"].inventory.includes("crystal-ball"), false);
   assert.ok(taken.state.playerLog.some((entry) => entry.includes("I take the crystal ball from Madam Wick.")));
@@ -191,11 +204,46 @@ test("Null can take the ball, and a fortune needs it in her hands", async () => 
 
   const refused = applyCommand(world, taken.state, "ask madam for a fortune");
   assert.equal(refused.consult, undefined);
-  assert.match(refused.lines.map((entry) => entry.text).join("\n"), /palms/);
+  assert.match(refused.lines.map((entry) => entry.text).join("\n"), /no crystal ball/);
+  assert.match(refused.beats?.[0].gist ?? "", /palms/);
 
   const returned = applyCommand(world, refused.state, "give ball to wick");
   assert.equal(returned.state.inventory.includes("crystal-ball"), false);
   assert.ok(returned.state.npcs["madam-wick"].inventory.includes("crystal-ball"));
   const ready = applyCommand(world, returned.state, "talk wick about fortune");
   assert.equal(ready.consult?.activator, "madam-wick");
+});
+
+test("a reading cut off mid-JSON still shows her words, not the braces", async () => {
+  const { world, state } = booth();
+  const asked = applyCommand(world, state, "ask wick for a fortune");
+  const told = await consultOracle(
+    world,
+    asked,
+    io({
+      read: async () => ({ name: "Null", memory: "I went to the dock.", log: "" }),
+      cryptic: async () => '{ "say": "The dock remembers you, receipt. It wants you back, and it should not get',
+    }),
+  );
+  const shown = told.lines.map((entry) => entry.text).join("\n");
+  assert.match(shown, /Madam Wick: The dock remembers you, receipt\./);
+  assert.equal(shown.includes("{"), false);
+  assert.equal(shown.includes("should not get"), false);
+});
+
+test("a reading that only parrots the cue is dropped, and the whisper still shows", async () => {
+  const { world, state } = booth();
+  const asked = applyCommand(world, state, "ask wick for a fortune");
+  const told = await consultOracle(
+    world,
+    asked,
+    io({
+      read: async () => ({ name: "Null", memory: "I went to the dock.", log: "" }),
+      cryptic: async () =>
+        'The ball whispered about Null: "He waited on the dock." Now tell Null what you make of it.',
+    }),
+  );
+  const shown = told.lines.map((entry) => entry.text).join("\n");
+  assert.match(shown, /The crystal ball whispers, "He waited on the dock\."/);
+  assert.equal(shown.includes("Madam Wick:"), false);
 });
