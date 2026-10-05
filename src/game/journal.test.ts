@@ -20,8 +20,8 @@ test("journal files use the person's name", () => {
   assert.equal(personFileName(".."), "unnamed");
   assert.equal(personFileName("dot."), "dot");
   assert.equal(logFileName("Old Coil"), "Old Coil.log");
-  assert.equal(memoryFileName("Mare Voss"), "Mare Voss.memory.txt");
-  assert.equal(memoryUrl("Old Coil"), "/journals/Old%20Coil.memory.txt");
+  assert.equal(memoryFileName("Mare Voss"), "Mare Voss.memory.json");
+  assert.equal(memoryUrl("Old Coil"), "/journals/Old%20Coil.memory.json");
 });
 
 test("a saved log keeps the hypnos marker and adds only new lines after it", () => {

@@ -37,7 +37,24 @@ Tests load the cartridge from `public/ash/` and walk a full route to the Spire:
 node --experimental-strip-types --test src/game/*.test.ts
 python -m unittest hypnos_test.py
 npx tsc --noEmit
+dotnet test dotnet/Ash.Game.Tests
 ```
+
+## Command prompt
+
+The same cartridge plays from a console. The C# player uses the GGUF through LLamaSharp. The browser stays on Ollama.
+
+```powershell
+dotnet run --project dotnet/Ash.Cli
+```
+
+The program walks up from the current directory until it finds `public/ash/index.json`. At the title, `new` starts a life and `continue` reads `tape.json` in the repo root. `quit` leaves. Up and down arrow walk the command history when the console can read keys. If input is redirected, it reads plain lines instead. That is what some SSH sessions do.
+
+Colors are ANSI truecolor: phosphor for the room, ash for speech and system lines, dim for the echo, red for warnings and for HP under 5. `NO_COLOR` turns the color off. A pipe turns it off as well. PowerShell and an SSH session that has a terminal keep it.
+
+The model file is `C:\Users\Geir Gundersen\OneDrive\models\Qwen3-4B-Instruct-2507-Q4_K_M.gguf`. `ASH_MODEL` or `--model` selects another file. The first line that needs the model tries CUDA, then Vulkan, then CPU, each in its own process. The one that loads is used, and that load is the pause before the first reply. `--backend cpu` (or `vulkan` or `cuda`) uses that one. One loaded model answers the people in the room one at a time. Slash commands never load it. A living turn writes `tape.json`. A death leaves the previous tape in place. NPC logs still go to `journals/`.
+
+Hypnos, and the crystal ball's memory lookup, stay in Python. The console runs `python hypnos.py --read-only --npc <id>`. The whisper and Madam Wick's sentence run on the GGUF. The browser still asks Ollama for those.
 
 ## How to play
 
@@ -221,9 +238,9 @@ A *gist* is notes, not a line to quote. "You" is the NPC and "they" is Null: `"S
 
 Each person keeps a log of what they observe. It starts with Null walking into their room. After that it records speech, actions in that room, and what they themselves say and do. Their own lines use "I". A trade is one line, `Trade happens - 1 chemical breather for 16 scrip.` A door that becomes passable while Null is in the room is `Door to east opens.` The log is part of the tape. While `npm run dev` or `npm run preview` is running, each change is also written to `journals/<name>.log`, using that person's name: `journals/Old Coil.log`.
 
-Null keeps his own action log on the tape, `playerLog`, and in `journals/Null.log`. It is what he did and what he heard, in lines such as `I go north.` and `Mare Voss replies "..."`. Hypnos compresses that log with the old memory into `journals/Null.memory.txt`, in the first person. A tape saved before this log starts his journal empty.
+Null keeps his own action log on the tape, `playerLog`, and in `journals/Null.log`. It is what he did and what he heard, in lines such as `I go north.` and `Mare Voss replies "..."`. Hypnos compresses that log with the old memory into `journals/Null.memory.json`, in the first person. A leftover `journals/Null.memory.txt` is still read. A tape saved before this log starts his journal empty.
 
-Hypnos reads the lines after the last `--- hypnos ---` marker in those logs and writes `journals/<name>.memory.txt`. It then appends that marker. The memory file is included in that person's next Ollama prompt, ahead of the log.
+Hypnos reads the lines after the last `--- hypnos ---` marker in those logs and writes `journals/<name>.memory.json` as `{ "memory": "..." }`. It then appends that marker. The memory file is included in that person's next prompt, ahead of the log.
 
 `role.json` is for the model. The cartridge loader does not read it. The harness fetches `/ash/npcs/<id>/role.json` whenever that person speaks. `prompt` is the life they stay inside. `objectives` are the only world changes speech can make through the model. Each objective has:
 
@@ -261,6 +278,8 @@ src/game/harness.ts               front door, NPC voices
 src/game/ollama.ts                the model name and the chat call
 src/game/oracle.ts                crystal ball readings
 hypnos.py                         writes memory files from the logs
+dotnet/Ash.Game                  engine, harness, and oracle
+dotnet/Ash.Cli                    console player and LLamaSharp session
 src/game/harness.test.ts
 src/game/interpret.test.ts
 src/game/walkthrough.test.ts
@@ -295,7 +314,7 @@ A reply includes that person's memory file under `MEMORY`, then the log under `W
 
 ### Hypnos
 
-Hypnos is the sleep cycle. It sends Qwen3:4b the old `journals/<name>.memory.txt` and the lines of `journals/<name>.log` after the last `--- hypnos ---` marker. The prompt asks for one new memory that compresses both. Thinking may stay on. The file is written only when the reply reads as that person's own recollection: first person, a few sentences, no reasoning and no plan. A reply that is not a memory leaves the file and the marker alone. After a memory is written, Hypnos appends `--- hypnos ---` to the log. The next run compresses that new memory with only the lines after the marker. A log with nothing after the marker is left alone. While the dev server or preview is running, saving the log keeps the marker and writes new lines after it. Null's memory uses I. An NPC's memory uses I, and Null is he.
+Hypnos is the sleep cycle. It sends the GGUF the old `journals/<name>.memory.json` and the lines of `journals/<name>.log` after the last `--- hypnos ---` marker. The prompt asks for one new memory that compresses both. The file is written only when the reply reads as that person's own recollection: first person, a few sentences, no reasoning and no plan. A reply that is not a memory leaves the file and the marker alone. After a memory is written, Hypnos appends `--- hypnos ---` to the log. The next run compresses that new memory with only the lines after the marker. A log with nothing after the marker is left alone. While the dev server or preview is running, saving the log keeps the marker and writes new lines after it. Null's memory uses I. An NPC's memory uses I, and Null is he. A `.memory.txt` file is still read when the JSON file is absent.
 
 ```bash
 python hypnos.py
@@ -309,7 +328,7 @@ python hypnos.py --read-only --npc old-coil
 
 `--read-only` needs `--npc`. It prints JSON, `{ id, name, memory, log }`, and does not write the memory or add a marker. `null` is Null. The crystal ball uses this. The dev server and preview expose it as `GET /hypnos/read?npc=<id>`, which runs that command. The log in the JSON has the marker lines removed. The memory is the file Hypnos has already written.
 
-The sleep cycle calls Ollama at `http://127.0.0.1:11434/api/chat` with `qwen3:4b`. It does not turn thinking off. Only the memory field is saved. `--read-only` does not call the model.
+The sleep cycle loads the same GGUF through `llama-cpp-python`. Install the prebuilt CPU wheel with `pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu`. It tries every GPU layer, then CPU. `ASH_MODEL` selects another file. Only the memory field is saved. `--read-only` does not call the model and does not need the package.
 
 ### The crystal ball
 

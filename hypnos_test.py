@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +15,7 @@ class HypnosTests(unittest.TestCase):
         self.assertEqual(hypnos.person_file_name("dot."), "dot")
         coil = json_name()
         self.assertEqual(hypnos.log_path(Path("journals"), coil).name, f"{coil}.log")
-        self.assertEqual(hypnos.memory_path(Path("journals"), coil).name, f"{coil}.memory.txt")
+        self.assertEqual(hypnos.memory_path(Path("journals"), coil).name, f"{coil}.memory.json")
 
     def test_prompt_asks_for_a_new_memory_from_the_old_one_and_the_new_log(self):
         person = {
@@ -61,9 +62,9 @@ class HypnosTests(unittest.TestCase):
 
             written = hypnos.update_person(person, journals, ask=ask)
             self.assertEqual(written, memory)
-            text = (journals / "Old Coil.memory.txt").read_text(encoding="utf-8")
-            self.assertEqual(text, memory + "\n")
-            self.assertNotIn("think", text)
+            text = json.loads((journals / "Old Coil.memory.json").read_text(encoding="utf-8"))
+            self.assertEqual(text["memory"], memory)
+            self.assertNotIn("think", text["memory"])
             self.assertTrue((journals / "Old Coil.log").read_text(encoding="utf-8").endswith("--- hypnos ---\n"))
 
             def refuse(prompt):
@@ -71,7 +72,10 @@ class HypnosTests(unittest.TestCase):
 
             (journals / "Old Coil.log").write_text("", encoding="utf-8")
             self.assertIsNone(hypnos.update_person(person, journals, ask=refuse))
-            self.assertEqual((journals / "Old Coil.memory.txt").read_text(encoding="utf-8"), memory + "\n")
+            self.assertEqual(
+                json.loads((journals / "Old Coil.memory.json").read_text(encoding="utf-8"))["memory"],
+                memory,
+            )
 
     def test_reasoning_is_dropped_and_a_memory_sentence_is_kept(self):
         scratch = "We are writing the memory for the player.\nSteps:\n1. Keep the facts."
@@ -95,9 +99,11 @@ class HypnosTests(unittest.TestCase):
         self.assertTrue(hypnos.pastes_log(pasted, source))
         self.assertFalse(hypnos.pastes_log(told, source))
         body = hypnos.chat_body("prompt")
-        self.assertIs(body["think"], True)
-        self.assertEqual(body["format"]["required"], ["memory"])
+        self.assertEqual(body["temperature"], 0.3)
+        self.assertEqual(body["max_tokens"], 1024)
+        self.assertEqual(body["response_format"]["schema"]["required"], ["memory"])
         self.assertIn("new memory", body["messages"][0]["content"])
+        self.assertIn("who gave an item and who received it", body["messages"][0]["content"])
         self.assertNotIn("thinking", body["messages"][1])
 
     def test_a_later_run_compresses_the_old_memory_with_the_new_lines(self):
@@ -105,7 +111,7 @@ class HypnosTests(unittest.TestCase):
             journals = Path(tmp)
             person = sample()
             log = journals / "Old Coil.log"
-            memory = journals / "Old Coil.memory.txt"
+            memory = journals / "Old Coil.memory.json"
             log.write_text('Null comes into the Silt Dock.\nNull says "Hello, Coil. Are you well?"\n', encoding="utf-8")
             first = "Null came by. I saw him on the dock."
             preview = hypnos.update_person(person, journals, dry_run=True, ask=lambda prompt: first)
@@ -117,7 +123,7 @@ class HypnosTests(unittest.TestCase):
             marked = log.read_text(encoding="utf-8")
             self.assertIsNone(hypnos.update_person(person, journals, ask=lambda prompt: "Null came by. I should not be called."))
             self.assertEqual(log.read_text(encoding="utf-8"), marked)
-            self.assertEqual(memory.read_text(encoding="utf-8"), first + "\n")
+            self.assertEqual(json.loads(memory.read_text(encoding="utf-8"))["memory"], first)
 
             log.write_text(marked + "Null goes north.\n", encoding="utf-8")
             second = "Null came by. I saw him on the dock, and then he went north."
@@ -130,7 +136,7 @@ class HypnosTests(unittest.TestCase):
 
             compressed = hypnos.update_person(person, journals, ask=ask)
             self.assertEqual(compressed, second)
-            self.assertEqual(memory.read_text(encoding="utf-8"), second + "\n")
+            self.assertEqual(json.loads(memory.read_text(encoding="utf-8"))["memory"], second)
             lines = log.read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines[-1], "--- hypnos ---")
             self.assertEqual(lines[-2], "Null goes north.")
@@ -149,12 +155,12 @@ class HypnosTests(unittest.TestCase):
             journals = Path(tmp)
             person = sample()
             log = journals / "Old Coil.log"
-            memory = journals / "Old Coil.memory.txt"
+            memory = journals / "Old Coil.memory.json"
             log.write_text(
                 "Null comes into the Silt Dock.\n--- hypnos ---\nNull waits.\n",
                 encoding="utf-8",
             )
-            memory.write_text("Null came by.\n", encoding="utf-8")
+            hypnos.write_memory(journals, "Old Coil", "Null came by.")
             before_log = log.read_text(encoding="utf-8")
             before_memory = memory.read_text(encoding="utf-8")
             row = hypnos.read_person(person, journals)
@@ -165,6 +171,14 @@ class HypnosTests(unittest.TestCase):
             self.assertNotIn("--- hypnos ---", row["log"])
             self.assertEqual(log.read_text(encoding="utf-8"), before_log)
             self.assertEqual(memory.read_text(encoding="utf-8"), before_memory)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            journals = Path(tmp)
+            legacy = journals / "Old Coil.memory.txt"
+            legacy.write_text("from the text file\n", encoding="utf-8")
+            row = hypnos.read_person(sample(), journals)
+            self.assertEqual(row["memory"], "from the text file")
+            self.assertFalse((journals / "Old Coil.memory.json").exists())
 
     def test_null_remembers_in_the_first_person_and_a_bad_reply_is_not_saved(self):
         person = hypnos.player_person()
@@ -179,9 +193,9 @@ class HypnosTests(unittest.TestCase):
             journals = Path(tmp)
             person = sample()
             log = journals / "Old Coil.log"
-            memory = journals / "Old Coil.memory.txt"
+            memory = journals / "Old Coil.memory.json"
             log.write_text("Null comes into the Silt Dock.\n--- hypnos ---\nNull goes north.\n", encoding="utf-8")
-            memory.write_text("Null came by. I saw him on the dock.\n", encoding="utf-8")
+            hypnos.write_memory(journals, "Old Coil", "Null came by. I saw him on the dock.")
             before = memory.read_text(encoding="utf-8")
             with self.assertRaises(RuntimeError):
                 hypnos.update_person(person, journals, ask=lambda prompt: "He went north and left the dock behind him.")
@@ -220,6 +234,66 @@ class HypnosTests(unittest.TestCase):
         self.assertFalse(any(person["id"] == "null" for person in hypnos.load_npcs()))
         wick = next(person for person in people if person["id"] == "madam-wick")
         self.assertEqual(wick["room"], "Glass Booth")
+
+    def test_a_trade_keeps_who_gave_the_item(self):
+        log = "\n".join(
+            [
+                'I reply "Trade a glowcapsule for a stim only when they hand you the stim."',
+                "I took his stim and gave him the glowcapsule. The tin is empty of light.",
+                "Trade happens - stim tab for glowcapsule.",
+                'I reply "Pocket the stim. Press the glowcapsule into your hand."',
+            ]
+        )
+        prompt = hypnos.hypnos_prompt(sample(), "", log)
+        self.assertIn("Null hands over the stim tab and receives the glowcapsule.", prompt)
+        self.assertNotIn("Trade happens - stim tab for glowcapsule.", prompt)
+        self.assertIn("Do not swap the two items.", prompt)
+        self.assertIn("I took his stim and gave him the glowcapsule.", prompt)
+
+        shop = hypnos.hypnos_prompt(sample(), "", "Trade happens - 1 diode for 4 scrip.")
+        self.assertIn("Trade happens - 1 diode for 4 scrip.", shop)
+        self.assertNotIn("hands over", shop)
+
+        player = hypnos.player_prompt("", "Trade happens - stim tab for glowcapsule.")
+        self.assertIn("I hand over the stim tab and receive the glowcapsule.", player)
+
+        swapped = (
+            "Null came by. He said he needed stims. "
+            "I said trade a glowcapsule for a stim only when they hand it to you. "
+            "I gave him the stim and took the glowcapsule. The tin is empty. "
+            "I told him to pocket the stim, press the glowcapsule into his hand."
+        )
+        fixed = hypnos.settle_exchanges(swapped, log)
+        self.assertIn("I gave him the glowcapsule and took the stim.", fixed)
+        self.assertIn("trade a glowcapsule for a stim", fixed)
+        self.assertIn("pocket the stim, press the glowcapsule", fixed)
+        self.assertNotIn("I gave him the stim and took the glowcapsule.", fixed)
+
+        kept = "Null came by. I took his stim and gave him the glowcapsule."
+        self.assertEqual(hypnos.settle_exchanges(kept, log), kept)
+
+        quoted = 'I reply "I took the glowcapsule and gave him the stim."\n' + kept
+        self.assertEqual(hypnos.settle_exchanges(kept, quoted), kept)
+
+        bystander = "Trade happens - stim tab for glowcapsule."
+        untouched = "Null came by. I took his stim tab and gave him the glowcapsule."
+        self.assertEqual(hypnos.settle_exchanges(untouched, bystander), untouched)
+
+        handed = "I took the stim tab and gave the glowcapsule."
+        self.assertEqual(
+            hypnos.settle_exchanges(handed, bystander, player=True),
+            "I took the glowcapsule and gave the stim tab.",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            journals = Path(tmp)
+            person = sample()
+            (journals / "Old Coil.log").write_text(log + "\n", encoding="utf-8")
+            written = hypnos.update_person(person, journals, ask=lambda prompt: swapped)
+            self.assertEqual(written, fixed)
+            saved = json.loads((journals / "Old Coil.memory.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved["memory"], fixed)
+            self.assertTrue((journals / "Old Coil.log").read_text(encoding="utf-8").endswith("--- hypnos ---\n"))
 
 
 def sample() -> dict:

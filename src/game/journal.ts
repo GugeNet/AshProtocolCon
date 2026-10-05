@@ -21,11 +21,19 @@ export function logFileName(name: string): string {
 }
 
 export function memoryFileName(name: string): string {
+  return `${personFileName(name)}.memory.json`;
+}
+
+export function legacyMemoryFileName(name: string): string {
   return `${personFileName(name)}.memory.txt`;
 }
 
 export function memoryUrl(name: string): string {
   return `/journals/${encodeURIComponent(memoryFileName(name))}`;
+}
+
+export function legacyMemoryUrl(name: string): string {
+  return `/journals/${encodeURIComponent(legacyMemoryFileName(name))}`;
 }
 
 export const HYPNOS_MARKER = "--- hypnos ---";

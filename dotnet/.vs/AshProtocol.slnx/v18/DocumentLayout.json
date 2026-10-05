@@ -1,0 +1,122 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\source\\AshProtocolCon\\dotnet\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{39F1E355-86C7-6D5C-75EF-084435FCD81C}|Ash.Cli\\Ash.Cli.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.cli\\modelsession.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39F1E355-86C7-6D5C-75EF-084435FCD81C}|Ash.Cli\\Ash.Cli.csproj|solutionrelative:ash.cli\\modelsession.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.game\\harness.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|solutionrelative:ash.game\\harness.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.game\\engine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|solutionrelative:ash.game\\engine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.game\\interpret.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|solutionrelative:ash.game\\interpret.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{39F1E355-86C7-6D5C-75EF-084435FCD81C}|Ash.Cli\\Ash.Cli.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.cli\\gamehost.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{39F1E355-86C7-6D5C-75EF-084435FCD81C}|Ash.Cli\\Ash.Cli.csproj|solutionrelative:ash.cli\\gamehost.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|d:\\source\\ashprotocolcon\\dotnet\\ash.game\\oracle.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{CDCB7B50-7207-0FFE-D3F8-2729F564749D}|Ash.Game\\Ash.Game.csproj|solutionrelative:ash.game\\oracle.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ModelSession.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Cli\\ModelSession.cs",
+              "RelativeDocumentMoniker": "Ash.Cli\\ModelSession.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Cli\\ModelSession.cs",
+              "RelativeToolTip": "Ash.Cli\\ModelSession.cs",
+              "ViewState": "AgIAACIAAAAAAAAAAAAzwCgAAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:49:34.029Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Harness.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Harness.cs",
+              "RelativeDocumentMoniker": "Ash.Game\\Harness.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Harness.cs",
+              "RelativeToolTip": "Ash.Game\\Harness.cs",
+              "ViewState": "AgIAACAAAAAAAAAAAAAAwCsAAAA7AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:47:04.003Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Engine.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Engine.cs",
+              "RelativeDocumentMoniker": "Ash.Game\\Engine.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Engine.cs",
+              "RelativeToolTip": "Ash.Game\\Engine.cs",
+              "ViewState": "AgIAAAEFAAAAAAAAAIAwwAwFAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:46:17.809Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Interpret.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Interpret.cs",
+              "RelativeDocumentMoniker": "Ash.Game\\Interpret.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Interpret.cs",
+              "RelativeToolTip": "Ash.Game\\Interpret.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:45:57.621Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "GameHost.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Cli\\GameHost.cs",
+              "RelativeDocumentMoniker": "Ash.Cli\\GameHost.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Cli\\GameHost.cs",
+              "RelativeToolTip": "Ash.Cli\\GameHost.cs",
+              "ViewState": "AgIAACoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:45:44.986Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Oracle.cs",
+              "DocumentMoniker": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Oracle.cs",
+              "RelativeDocumentMoniker": "Ash.Game\\Oracle.cs",
+              "ToolTip": "D:\\source\\AshProtocolCon\\dotnet\\Ash.Game\\Oracle.cs",
+              "RelativeToolTip": "Ash.Game\\Oracle.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-05T10:44:59.606Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

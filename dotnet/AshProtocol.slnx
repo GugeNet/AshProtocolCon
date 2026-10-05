@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Ash.Cli/Ash.Cli.csproj" />
+  <Project Path="Ash.Game.Tests/Ash.Game.Tests.csproj" />
+  <Project Path="Ash.Game/Ash.Game.csproj" />
+</Solution>

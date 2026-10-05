@@ -18,7 +18,7 @@ import {
   witnessAs,
   witnesses,
 } from "./observe.ts";
-import { memoryUrl, publishJournals } from "./journal.ts";
+import { legacyMemoryUrl, memoryUrl, publishJournals } from "./journal.ts";
 import { interpret, type Interpreter } from "./interpret.ts";
 import { askModel } from "./ollama.ts";
 import { consultOracle, type Reading } from "./oracle.ts";
@@ -236,9 +236,25 @@ function objectiveBrief(role: NpcRole, state: GameState, utterance: string): str
     .join("\n");
 }
 
+function memoryText(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return raw;
+  try {
+    const row = JSON.parse(trimmed) as { memory?: unknown };
+    return typeof row.memory === "string" ? row.memory : "";
+  } catch {
+    return "";
+  }
+}
+
 export function loadMemory(name: string): Promise<string> {
-  return fetch(memoryUrl(name), { cache: "no-store" })
-    .then(async (res) => (res.ok ? res.text() : ""))
+  const read = (url: string) => fetch(url, { cache: "no-store" });
+  return read(memoryUrl(name))
+    .then(async (res) => {
+      if (res.ok) return memoryText(await res.text());
+      const legacy = await read(legacyMemoryUrl(name));
+      return legacy.ok ? legacy.text() : "";
+    })
     .catch(() => "");
 }
 

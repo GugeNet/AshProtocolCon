@@ -203,7 +203,7 @@ const npcRoot = resolve("public/ash/npcs");
 
 function insideJournals(fileName: string): string | null {
   if (!fileName || fileName !== fileName.replace(/[\\/]/g, "")) return null;
-  if (!fileName.endsWith(".log") && !fileName.endsWith(".memory.txt")) return null;
+  if (!fileName.endsWith(".log") && !fileName.endsWith(".memory.txt") && !fileName.endsWith(".memory.json")) return null;
   const full = resolve(journalsRoot, fileName);
   const root = journalsRoot.endsWith(sep) ? journalsRoot : journalsRoot + sep;
   if (!full.startsWith(root)) return null;
