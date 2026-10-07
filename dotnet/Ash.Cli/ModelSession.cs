@@ -11,7 +11,8 @@ namespace Ash.Cli;
 
 sealed class ModelSession : IDisposable
 {
-    public const string DefaultModel = @"C:\Users\Geir Gundersen\OneDrive\models\Qwen3-4B-Instruct-2507-Q4_K_M.gguf";
+//    public const string DefaultModel = @"C:\Users\Geir Gundersen\OneDrive\models\Qwen3-4B-Instruct-2507-Q4_K_M.gguf";
+    public const string DefaultModel = @"C:\Users\papag\OneDrive\models\Qwen3-4B-Instruct-2507-Q4_K_M.gguf";
 
     static readonly NativeLogConfig.LLamaLogCallback LogSink = Quiet;
     static bool _bound;
@@ -153,16 +154,18 @@ sealed class ModelSession : IDisposable
             }
             log.WriteLine($"Trying {name}…");
             log.Flush();
-            if (Probe(name, modelPath)) return name;
+            if (Probe(name, modelPath, out var detail)) return name;
             log.WriteLine($"{name} did not load the model.");
+            if (!string.IsNullOrWhiteSpace(detail)) log.WriteLine(detail.Trim());
             log.Flush();
         }
         if (!Backends.Available("cpu", out var cpu)) throw new InvalidOperationException(cpu);
         return "cpu";
     }
 
-    static bool Probe(string backend, string modelPath)
+    static bool Probe(string backend, string modelPath, out string detail)
     {
+        detail = "";
         var exe = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exe)) return false;
         var start = new System.Diagnostics.ProcessStartInfo(exe)
@@ -178,14 +181,20 @@ sealed class ModelSession : IDisposable
         start.ArgumentList.Add(modelPath);
         using var process = System.Diagnostics.Process.Start(start);
         if (process is null) return false;
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var standardError = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(180_000))
         {
             try { process.Kill(true); } catch (InvalidOperationException) { }
+            detail = "Probe timed out.";
             return false;
         }
-        return process.ExitCode == 0;
+        Task.WaitAll(standardOutput, standardError);
+        var stderr = standardError.Result;
+        var stdout = standardOutput.Result;
+        if (process.ExitCode == 0) return true;
+        detail = string.IsNullOrWhiteSpace(stderr) ? stdout : stderr;
+        return false;
     }
 
     static void Bind(string dll)
