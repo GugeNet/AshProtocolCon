@@ -9,6 +9,11 @@ dotnet/**/obj/
 .vs/
 dotnet/.vs/
 **/.vs/
+**/.vs/**
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 dotnet/.cuda-redist/
 __pycache__/
 *.pyc
