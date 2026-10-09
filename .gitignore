@@ -7,3 +7,8 @@ tape.json
 dotnet/**/bin/
 dotnet/**/obj/
 .vs/
+dotnet/.vs/
+**/.vs/
+dotnet/.cuda-redist/
+__pycache__/
+*.pyc
