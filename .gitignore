@@ -6,3 +6,5 @@ journals
 tape.json
 dotnet/**/bin/
 dotnet/**/obj/
+/.vs/CopilotSnapshots
+/dotnet/.vs/AshProtocol.slnx/copilot-chat/67b34fc4/sessions
