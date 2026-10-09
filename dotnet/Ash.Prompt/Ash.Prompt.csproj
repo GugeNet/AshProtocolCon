@@ -11,4 +11,8 @@
     <ApplicationTitle>Ash Prompt</ApplicationTitle>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.37.0" />
+  </ItemGroup>
+
 </Project>

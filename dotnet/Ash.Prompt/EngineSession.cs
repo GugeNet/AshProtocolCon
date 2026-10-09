@@ -9,11 +9,24 @@ public static class PromptLimits
 {
     public const double MinTemperature = 0;
     public const double MaxTemperature = 2;
+    public const double MinTopP = 0;
+    public const double MaxTopP = 1;
+    public const int MinTopK = 0;
+    public const int MaxTopK = 500;
+    public const int MinSeed = 0;
+    public const int MaxSeed = int.MaxValue;
     public const int DefaultMaxTokens = 1024;
     public const int MaxTokensLimit = 8192;
 
     public static bool TemperatureOk(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value) && value >= MinTemperature && value <= MaxTemperature;
+
+    public static bool TopPOk(double value) =>
+        !double.IsNaN(value) && !double.IsInfinity(value) && value >= MinTopP && value <= MaxTopP;
+
+    public static bool TopKOk(int value) => value >= MinTopK && value <= MaxTopK;
+
+    public static bool SeedOk(int value) => value >= MinSeed && value <= MaxSeed;
 
     public static bool MaxTokensOk(int value) => value >= 1 && value <= MaxTokensLimit;
 }
@@ -57,10 +70,27 @@ public sealed class EngineSession : IAsyncDisposable
         }
     }
 
-    public async Task<string> CompleteAsync(string prompt, double temperature, int maxTokens, CancellationToken cancel)
+    public static string ExtractMarkdown(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var markdown = ExtractText(doc.RootElement);
+            return string.IsNullOrWhiteSpace(markdown) ? FormatRaw(json) : markdown;
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+    }
+
+    public async Task<string> CompleteAsync(string prompt, double temperature, double topP, int topK, int? seed, int maxTokens, CancellationToken cancel)
     {
         if (string.IsNullOrWhiteSpace(prompt)) throw new InvalidOperationException("The prompt is empty.");
         if (!PromptLimits.TemperatureOk(temperature)) throw new InvalidOperationException("Temperature must be from 0 to 2.");
+        if (!PromptLimits.TopPOk(topP)) throw new InvalidOperationException("Top-p must be from 0 to 1.");
+        if (!PromptLimits.TopKOk(topK)) throw new InvalidOperationException("Top-k must be from 0 to 500.");
+        if (seed is not null && !PromptLimits.SeedOk(seed.Value)) throw new InvalidOperationException("Seed must be from 0 to 2147483647.");
         if (!PromptLimits.MaxTokensOk(maxTokens)) throw new InvalidOperationException("Max tokens must be from 1 to 8192.");
 
         var id = Interlocked.Increment(ref _nextId);
@@ -70,6 +100,9 @@ public sealed class EngineSession : IAsyncDisposable
             ["id"] = id,
             ["prompt"] = prompt,
             ["temperature"] = temperature,
+            ["top_p"] = topP,
+            ["top_k"] = topK,
+            ["seed"] = seed,
             ["max_tokens"] = maxTokens,
         });
 
@@ -240,4 +273,60 @@ public sealed class EngineSession : IAsyncDisposable
     }
 
     readonly record struct EngineReply(bool Ok, string? Error, string? Raw);
+
+    static string? ExtractText(JsonElement node)
+    {
+        switch (node.ValueKind)
+        {
+            case JsonValueKind.String:
+                return node.GetString();
+            case JsonValueKind.Array:
+            {
+                var parts = new List<string>();
+                foreach (var item in node.EnumerateArray())
+                {
+                    var text = ExtractText(item);
+                    if (!string.IsNullOrWhiteSpace(text)) parts.Add(text.Trim());
+                }
+                return parts.Count == 0 ? null : string.Join("\n\n", parts);
+            }
+            case JsonValueKind.Object:
+            {
+                foreach (var key in new[] { "content", "text", "response", "output_text", "completion", "answer" })
+                {
+                    if (!node.TryGetProperty(key, out var value)) continue;
+                    var text = ExtractText(value);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                if (node.TryGetProperty("message", out var message))
+                {
+                    var text = ExtractText(message);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                if (node.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
+                {
+                    var text = ExtractText(choices);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                if (node.TryGetProperty("candidates", out var candidates) && candidates.ValueKind == JsonValueKind.Array)
+                {
+                    var text = ExtractText(candidates);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                if (node.TryGetProperty("parts", out var partsNode) && partsNode.ValueKind == JsonValueKind.Array)
+                {
+                    var text = ExtractText(partsNode);
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                return null;
+            }
+            default:
+                return null;
+        }
+    }
 }

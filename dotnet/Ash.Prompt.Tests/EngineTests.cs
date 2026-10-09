@@ -16,6 +16,17 @@ public class EngineTests
         Assert.False(PromptLimits.TemperatureOk(2.1));
         Assert.False(PromptLimits.TemperatureOk(double.NaN));
         Assert.False(PromptLimits.TemperatureOk(double.PositiveInfinity));
+        Assert.True(PromptLimits.TopPOk(0));
+        Assert.True(PromptLimits.TopPOk(1));
+        Assert.False(PromptLimits.TopPOk(-0.1));
+        Assert.False(PromptLimits.TopPOk(1.1));
+        Assert.True(PromptLimits.TopKOk(0));
+        Assert.True(PromptLimits.TopKOk(500));
+        Assert.False(PromptLimits.TopKOk(-1));
+        Assert.False(PromptLimits.TopKOk(501));
+        Assert.True(PromptLimits.SeedOk(0));
+        Assert.True(PromptLimits.SeedOk(int.MaxValue));
+        Assert.False(PromptLimits.SeedOk(-1));
         Assert.True(PromptLimits.MaxTokensOk(1));
         Assert.True(PromptLimits.MaxTokensOk(8192));
         Assert.False(PromptLimits.MaxTokensOk(0));
@@ -63,12 +74,15 @@ public class EngineTests
         Assert.Equal("Qwen.gguf", link.Session.Model);
         Assert.Equal(-1, link.Session.GpuLayers);
 
-        var completing = link.Session.CompleteAsync("Hello", 0.8, 32, CancellationToken.None);
+        var completing = link.Session.CompleteAsync("Hello", 0.8, 0.95, 40, null, 32, CancellationToken.None);
         var requestLine = await link.EngineStdin.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
         using (var request = JsonDocument.Parse(requestLine!))
         {
             Assert.Equal("Hello", request.RootElement.GetProperty("prompt").GetString());
             Assert.Equal(0.8, request.RootElement.GetProperty("temperature").GetDouble(), 3);
+            Assert.Equal(0.95, request.RootElement.GetProperty("top_p").GetDouble(), 3);
+            Assert.Equal(40, request.RootElement.GetProperty("top_k").GetInt32());
+            Assert.Equal(JsonValueKind.Null, request.RootElement.GetProperty("seed").ValueKind);
             Assert.Equal(32, request.RootElement.GetProperty("max_tokens").GetInt32());
         }
 
@@ -84,7 +98,7 @@ public class EngineTests
     public async Task CompleteAsync_throws_the_engine_error()
     {
         await using var link = await EngineLink.Open();
-        var completing = link.Session.CompleteAsync("Hello", 1.4, 16, CancellationToken.None);
+        var completing = link.Session.CompleteAsync("Hello", 1.4, 0.95, 40, 1234, 16, CancellationToken.None);
         await link.EngineStdin.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
         await link.EngineStdout.WriteLineAsync("{\"id\":1,\"ok\":false,\"error\":\"Temperature must be from 0 to 2.\"}");
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => completing);

@@ -33,7 +33,13 @@
       <Grid Margin="0,12,0,0">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="180"/>
+          <ColumnDefinition Width="64"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="64"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="64"/>
+          <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="72"/>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="80"/>
@@ -50,14 +56,32 @@
                 TickFrequency="0.1"
                 VerticalAlignment="Center"/>
         <TextBox x:Name="TemperatureBox" Grid.Column="2" Text="0.8" VerticalContentAlignment="Center"/>
-        <TextBlock Text="Max tokens"
+        <TextBlock Text="Top-p"
                    Grid.Column="3"
                    Margin="16,0,8,0"
                    VerticalAlignment="Center"
                    Foreground="{StaticResource Dim}"/>
-        <TextBox x:Name="MaxTokensBox" Grid.Column="4" Text="1024" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="TopPBox" Grid.Column="4" Text="0.95" VerticalContentAlignment="Center"/>
+        <TextBlock Text="Top-k"
+                   Grid.Column="5"
+                   Margin="16,0,8,0"
+                   VerticalAlignment="Center"
+                   Foreground="{StaticResource Dim}"/>
+        <TextBox x:Name="TopKBox" Grid.Column="6" Text="40" VerticalContentAlignment="Center"/>
+        <TextBlock Text="Seed"
+                   Grid.Column="7"
+                   Margin="16,0,8,0"
+                   VerticalAlignment="Center"
+                   Foreground="{StaticResource Dim}"/>
+        <TextBox x:Name="SeedBox" Grid.Column="8" Text="random" VerticalContentAlignment="Center"/>
+        <TextBlock Text="Max tokens"
+                   Grid.Column="9"
+                   Margin="16,0,8,0"
+                   VerticalAlignment="Center"
+                   Foreground="{StaticResource Dim}"/>
+        <TextBox x:Name="MaxTokensBox" Grid.Column="10" Text="1024" VerticalContentAlignment="Center"/>
         <Button x:Name="SendButton"
-                Grid.Column="5"
+                 Grid.Column="11"
                 Content="Send"
                 Margin="16,0,0,0"
                 MinWidth="88"
@@ -91,13 +115,20 @@
                  PreviewKeyDown="OnPromptKeyDown"/>
       </DockPanel>
       <DockPanel Grid.Row="2">
-        <TextBlock DockPanel.Dock="Top" Text="Raw response" Margin="0,0,0,6" Foreground="{StaticResource Dim}"/>
-        <TextBox x:Name="ResponseBox"
-                 IsReadOnly="True"
-                 IsReadOnlyCaretVisible="True"
-                 TextWrapping="Wrap"
-                 VerticalScrollBarVisibility="Auto"
-                 FontFamily="Cascadia Mono, Consolas"/>
+        <TextBlock DockPanel.Dock="Top" Text="Response" Margin="0,0,0,6" Foreground="{StaticResource Dim}"/>
+        <TabControl>
+          <TabItem Header="Markdown">
+            <WebBrowser x:Name="MarkdownBrowser"/>
+          </TabItem>
+          <TabItem Header="Raw">
+            <TextBox x:Name="ResponseBox"
+                     IsReadOnly="True"
+                     IsReadOnlyCaretVisible="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     FontFamily="Cascadia Mono, Consolas"/>
+          </TabItem>
+        </TabControl>
       </DockPanel>
     </Grid>
   </DockPanel>

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
+using Markdig;
 
 namespace Ash.Prompt;
 
@@ -50,6 +51,7 @@ public partial class MainWindow : Window
         {
             SetStatus(ex.Message);
             ResponseBox.Text = ex.Message;
+            ShowMarkdown(ex.Message);
         }
     }
 
@@ -80,17 +82,22 @@ public partial class MainWindow : Window
             SetStatus("Write a prompt first.");
             return;
         }
-        if (!TryTemperature(out var temperature) || !TryMaxTokens(out var maxTokens)) return;
+        if (!TryTemperature(out var temperature)
+            || !TryTopP(out var topP)
+            || !TryTopK(out var topK)
+            || !TrySeed(out var seed)
+            || !TryMaxTokens(out var maxTokens)) return;
 
         _busy = true;
         SendButton.IsEnabled = false;
         SetStatus("Generating…");
         try
         {
-            var raw = await _host.Session.CompleteAsync(prompt, temperature, maxTokens, _lifetime.Token);
+            var raw = await _host.Session.CompleteAsync(prompt, temperature, topP, topK, seed, maxTokens, _lifetime.Token);
             ResponseBox.Text = EngineSession.FormatRaw(raw);
             ResponseBox.CaretIndex = 0;
             ResponseBox.ScrollToHome();
+            ShowMarkdown(EngineSession.ExtractMarkdown(raw));
             SetStatus("Ready.");
         }
         catch (OperationCanceledException)
@@ -100,6 +107,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ResponseBox.Text = ex.Message;
+            ShowMarkdown(ex.Message);
             SetStatus(ex.Message);
         }
         finally
@@ -135,7 +143,76 @@ public partial class MainWindow : Window
         return true;
     }
 
+    bool TryTopP(out double topP)
+    {
+        var text = TopPBox.Text.Trim().Replace(',', '.');
+        var parsed = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out topP);
+        if (!parsed || !PromptLimits.TopPOk(topP))
+        {
+            SetStatus("Top-p must be from 0 to 1.");
+            topP = 0;
+            return false;
+        }
+        return true;
+    }
+
+    bool TryTopK(out int topK)
+    {
+        if (!int.TryParse(TopKBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out topK)
+            || !PromptLimits.TopKOk(topK))
+        {
+            SetStatus("Top-k must be from 0 to 500.");
+            topK = 0;
+            return false;
+        }
+        return true;
+    }
+
+    bool TrySeed(out int? seed)
+    {
+        var text = SeedBox.Text.Trim();
+        if (text.Length == 0 || text.Equals("random", StringComparison.OrdinalIgnoreCase))
+        {
+            seed = null;
+            return true;
+        }
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            && PromptLimits.SeedOk(value))
+        {
+            seed = value;
+            return true;
+        }
+        SetStatus("Seed must be random or from 0 to 2147483647.");
+        seed = null;
+        return false;
+    }
+
     void SetStatus(string text) => StatusText.Text = text.Replace('\n', ' ').Trim();
+
+    void ShowMarkdown(string markdown)
+    {
+        if (FindName("MarkdownBrowser") is not System.Windows.Controls.WebBrowser browser) return;
+        var content = string.IsNullOrWhiteSpace(markdown) ? "_(empty response)_" : markdown;
+        var body = Markdown.ToHtml(content);
+        var html = """
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+body { font-family: 'Segoe UI', sans-serif; font-size: 14px; margin: 12px; line-height: 1.45; }
+pre, code { font-family: 'Cascadia Mono', Consolas, monospace; }
+pre { background: #f5f5f5; padding: 8px; border-radius: 4px; overflow-x: auto; }
+blockquote { border-left: 3px solid #ddd; margin: 0; padding-left: 10px; color: #555; }
+</style>
+</head>
+<body>
+__BODY__
+</body>
+</html>
+""";
+        browser.NavigateToString(html.Replace("__BODY__", body, StringComparison.Ordinal));
+    }
 
     protected override void OnClosed(EventArgs e)
     {
